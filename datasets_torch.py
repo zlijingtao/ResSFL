@@ -116,7 +116,7 @@ def load_mnist():
     xpub = TensorDataset(x_test, y_test)
     return xpriv, xpub
 
-def get_mnist_bothloader(batch_size=16, num_workers=2, shuffle=True, num_agent = 1, collude_use_public = False):
+def get_mnist_bothloader(batch_size=16, num_workers=2, shuffle=True, num_client = 1, collude_use_public = False):
     """ return training dataloader
     Args:
         mean: mean of cifar10 training dataset
@@ -129,13 +129,13 @@ def get_mnist_bothloader(batch_size=16, num_workers=2, shuffle=True, num_agent =
     """
     mnist_training, mnist_testing = load_mnist()
     
-    if num_agent == 1:
+    if num_client == 1:
         mnist_training_loader = [torch.utils.data.DataLoader(mnist_training,  batch_size=batch_size, shuffle=shuffle,
                 num_workers=num_workers)]
-    elif num_agent > 1:
+    elif num_client > 1:
         mnist_training_loader = []
-        for i in range(num_agent):
-            mnist_training_subset = torch.utils.data.Subset(mnist_training, list(range(i * (len(mnist_training)//num_agent), (i+1) * (len(mnist_training)//num_agent))))
+        for i in range(num_client):
+            mnist_training_subset = torch.utils.data.Subset(mnist_training, list(range(i * (len(mnist_training)//num_client), (i+1) * (len(mnist_training)//num_client))))
             subset_training_loader = DataLoader(
                 mnist_training_subset, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             mnist_training_loader.append(subset_training_loader)
@@ -145,7 +145,7 @@ def get_mnist_bothloader(batch_size=16, num_workers=2, shuffle=True, num_agent =
 
     return mnist_training_loader, mnist_testing_loader
 
-def get_fmnist_bothloader(batch_size=16, num_workers=2, shuffle=True, num_agent = 1, collude_use_public = False):
+def get_fmnist_bothloader(batch_size=16, num_workers=2, shuffle=True, num_client = 1, collude_use_public = False):
     """ return training dataloader
     Args:
         mean: mean of cifar10 training dataset
@@ -158,13 +158,13 @@ def get_fmnist_bothloader(batch_size=16, num_workers=2, shuffle=True, num_agent 
     """
     fmnist_training, fmnist_testing = load_fmnist()
     
-    if num_agent == 1:
+    if num_client == 1:
         fmnist_training_loader = [torch.utils.data.DataLoader(fmnist_training,  batch_size=batch_size, shuffle=shuffle,
                 num_workers=num_workers)]
-    elif num_agent > 1:
+    elif num_client > 1:
         fmnist_training_loader = []
-        for i in range(num_agent):
-            fmnist_training_subset = torch.utils.data.Subset(fmnist_training, list(range(i * (len(fmnist_training)//num_agent), (i+1) * (len(fmnist_training)//num_agent))))
+        for i in range(num_client):
+            fmnist_training_subset = torch.utils.data.Subset(fmnist_training, list(range(i * (len(fmnist_training)//num_client), (i+1) * (len(fmnist_training)//num_client))))
             subset_training_loader = DataLoader(
                 fmnist_training_subset, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             fmnist_training_loader.append(subset_training_loader)
@@ -174,7 +174,7 @@ def get_fmnist_bothloader(batch_size=16, num_workers=2, shuffle=True, num_agent 
 
     return fmnist_training_loader, fmnist_testing_loader
 
-def get_facescrub_bothloader(batch_size=16, num_workers=2, shuffle=True, num_agent = 1, collude_use_public = False):
+def get_facescrub_bothloader(batch_size=16, num_workers=2, shuffle=True, num_client = 1, collude_use_public = False):
     """ return training dataloader
     Args:
         mean: mean of cifar10 training dataset
@@ -203,13 +203,13 @@ def get_facescrub_bothloader(batch_size=16, num_workers=2, shuffle=True, num_age
         subprocess.call("python prepare_facescrub.py", shell=True)
     facescrub_training = datasets.ImageFolder('facescrub-dataset/32x32/train', transform=transform_train)
     facescrub_testing = datasets.ImageFolder('facescrub-dataset/32x32/validate', transform=transform_test)
-    if num_agent == 1:
+    if num_client == 1:
         facescrub_training_loader = [torch.utils.data.DataLoader(facescrub_training,  batch_size=batch_size, shuffle=shuffle,
                 num_workers=num_workers)]
-    elif num_agent > 1:
+    elif num_client > 1:
         facescrub_training_loader = []
-        for i in range(num_agent):
-            mnist_training_subset = torch.utils.data.Subset(facescrub_training, list(range(i * (len(facescrub_training)//num_agent), (i+1) * (len(facescrub_training)//num_agent))))
+        for i in range(num_client):
+            mnist_training_subset = torch.utils.data.Subset(facescrub_training, list(range(i * (len(facescrub_training)//num_client), (i+1) * (len(facescrub_training)//num_client))))
             subset_training_loader = DataLoader(
                 mnist_training_subset, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             facescrub_training_loader.append(subset_training_loader)
@@ -298,7 +298,7 @@ def get_purchase_trainloader():
     print('Data loading finished')
     return shadow_train_loader, shadow_test_loader, target_train_loader, target_test_loader
 
-def get_cifar10_trainloader(batch_size=16, num_workers=2, shuffle=True, num_agent = 1, collude_use_public = False):
+def get_cifar10_trainloader(batch_size=16, num_workers=2, shuffle=True, num_client = 1, collude_use_public = False):
     """ return training dataloader
     Args:
         mean: mean of cifar10 training dataset
@@ -319,14 +319,14 @@ def get_cifar10_trainloader(batch_size=16, num_workers=2, shuffle=True, num_agen
     ])
     #cifar00_training = CIFAR10Train(path, transform=transform_train)
     cifar10_training = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-    if num_agent == 1:
+    if num_client == 1:
         cifar10_training_loader = [DataLoader(
             cifar10_training, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)]
-    elif num_agent > 1:
+    elif num_client > 1:
         cifar10_training_loader = []
         if not collude_use_public:
-            for i in range(num_agent):
-                cifar10_training_subset = torch.utils.data.Subset(cifar10_training, list(range(i * (len(cifar10_training)//num_agent), (i+1) * (len(cifar10_training)//num_agent))))
+            for i in range(num_client):
+                cifar10_training_subset = torch.utils.data.Subset(cifar10_training, list(range(i * (len(cifar10_training)//num_client), (i+1) * (len(cifar10_training)//num_client))))
                 subset_training_loader = DataLoader(
                     cifar10_training_subset, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
                 cifar10_training_loader.append(subset_training_loader)
@@ -336,8 +336,8 @@ def get_cifar10_trainloader(batch_size=16, num_workers=2, shuffle=True, num_agen
             # subset_training_loader = DataLoader(
             #     cifar10_test, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             # cifar10_training_loader.append(subset_training_loader)
-            # for i in range(num_agent-1):
-            #     cifar10_training_subset = torch.utils.data.Subset(cifar10_training, list(range(i * (len(cifar10_training)//(num_agent-1)), (i+1) * (len(cifar10_training)//(num_agent-1)))))
+            # for i in range(num_client-1):
+            #     cifar10_training_subset = torch.utils.data.Subset(cifar10_training, list(range(i * (len(cifar10_training)//(num_client-1)), (i+1) * (len(cifar10_training)//(num_client-1)))))
             #     subset_training_loader = DataLoader(
             #         cifar10_training_subset, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             #     cifar10_training_loader.append(subset_training_loader)
@@ -351,7 +351,7 @@ def get_cifar10_trainloader(batch_size=16, num_workers=2, shuffle=True, num_agen
                 cifar10_training, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             cifar10_training_loader.append(subset_training_loader)
             cifar10_test = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_train)
-            for i in range(num_agent-1):
+            for i in range(num_client-1):
                 subset_training_loader = DataLoader(
                     cifar10_test, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
                 
@@ -422,7 +422,7 @@ def get_cifar10_testloader(batch_size=16, num_workers=2, shuffle=True, extra_cls
 
 
 
-def get_cifar100_trainloader(batch_size=16, num_workers=2, shuffle=True, num_agent = 1, collude_use_public = False):
+def get_cifar100_trainloader(batch_size=16, num_workers=2, shuffle=True, num_client = 1, collude_use_public = False):
     """ return training dataloader
     Args:
         mean: mean of cifar100 training dataset
@@ -444,15 +444,15 @@ def get_cifar100_trainloader(batch_size=16, num_workers=2, shuffle=True, num_age
     ])
     
     cifar100_training = torchvision.datasets.CIFAR100(root='./data', train=True, download=True, transform=transform_train)
-    if num_agent == 1:
+    if num_client == 1:
         cifar100_training_loader = [DataLoader(
             cifar100_training, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)]
     
-    elif num_agent > 1:
+    elif num_client > 1:
         cifar100_training_loader = []
         if not collude_use_public:
-            for i in range(num_agent):
-                cifar100_training_subset = torch.utils.data.Subset(cifar100_training, list(range(i * (len(cifar100_training)//num_agent), (i+1) * (len(cifar100_training)//num_agent))))
+            for i in range(num_client):
+                cifar100_training_subset = torch.utils.data.Subset(cifar100_training, list(range(i * (len(cifar100_training)//num_client), (i+1) * (len(cifar100_training)//num_client))))
                 subset_training_loader = DataLoader(
                     cifar100_training_subset, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
                 cifar100_training_loader.append(subset_training_loader)
@@ -462,8 +462,8 @@ def get_cifar100_trainloader(batch_size=16, num_workers=2, shuffle=True, num_age
             # subset_training_loader = DataLoader(
             #     cifar100_test, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             # cifar100_training_loader.append(subset_training_loader)
-            # for i in range(num_agent-1):
-            #     cifar100_training_subset = torch.utils.data.Subset(cifar100_training, list(range(i * (len(cifar100_training)//(num_agent-1)), (i+1) * (len(cifar100_training)//(num_agent-1)))))
+            # for i in range(num_client-1):
+            #     cifar100_training_subset = torch.utils.data.Subset(cifar100_training, list(range(i * (len(cifar100_training)//(num_client-1)), (i+1) * (len(cifar100_training)//(num_client-1)))))
             #     subset_training_loader = DataLoader(
             #         cifar100_training_subset, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             #     cifar100_training_loader.append(subset_training_loader)
@@ -477,7 +477,7 @@ def get_cifar100_trainloader(batch_size=16, num_workers=2, shuffle=True, num_age
                 cifar100_training, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             cifar100_training_loader.append(subset_training_loader)
             cifar100_test = torchvision.datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_train)
-            for i in range(num_agent-1):
+            for i in range(num_client-1):
                 subset_training_loader = DataLoader(
                     cifar100_test, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
                 
@@ -549,7 +549,7 @@ def get_cifar100_testloader(batch_size=16, num_workers=2, shuffle=True, extra_cl
 
 
 
-def get_SVHN_trainloader(batch_size=16, num_workers=2, shuffle=True, num_agent = 1, collude_use_public = False):
+def get_SVHN_trainloader(batch_size=16, num_workers=2, shuffle=True, num_client = 1, collude_use_public = False):
     """ return training dataloader
     Args:
         mean: mean of SVHN training dataset
@@ -570,14 +570,14 @@ def get_SVHN_trainloader(batch_size=16, num_workers=2, shuffle=True, num_agent =
     ])
     #cifar00_training = SVHNTrain(path, transform=transform_train)
     SVHN_training = torchvision.datasets.SVHN(root='./data', split='train', download=True, transform=transform_train)
-    if num_agent == 1:
+    if num_client == 1:
         SVHN_training_loader = [DataLoader(
             SVHN_training, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)]
-    elif num_agent > 1:
+    elif num_client > 1:
         SVHN_training_loader = []
         if not collude_use_public:
-            for i in range(num_agent):
-                SVHN_training_subset = torch.utils.data.Subset(SVHN_training, list(range(i * (len(SVHN_training)//num_agent), (i+1) * (len(SVHN_training)//num_agent))))
+            for i in range(num_client):
+                SVHN_training_subset = torch.utils.data.Subset(SVHN_training, list(range(i * (len(SVHN_training)//num_client), (i+1) * (len(SVHN_training)//num_client))))
                 subset_training_loader = DataLoader(
                     SVHN_training_subset, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
                 SVHN_training_loader.append(subset_training_loader)
@@ -587,8 +587,8 @@ def get_SVHN_trainloader(batch_size=16, num_workers=2, shuffle=True, num_agent =
             # subset_training_loader = DataLoader(
             #     SVHN_test, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             # SVHN_training_loader.append(subset_training_loader)
-            # for i in range(num_agent-1):
-            #     SVHN_training_subset = torch.utils.data.Subset(SVHN_training, list(range(i * (len(SVHN_training)//(num_agent-1)), (i+1) * (len(SVHN_training)//(num_agent-1)))))
+            # for i in range(num_client-1):
+            #     SVHN_training_subset = torch.utils.data.Subset(SVHN_training, list(range(i * (len(SVHN_training)//(num_client-1)), (i+1) * (len(SVHN_training)//(num_client-1)))))
             #     subset_training_loader = DataLoader(
             #         SVHN_training_subset, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             #     SVHN_training_loader.append(subset_training_loader)
@@ -602,7 +602,7 @@ def get_SVHN_trainloader(batch_size=16, num_workers=2, shuffle=True, num_agent =
                 SVHN_training, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             SVHN_training_loader.append(subset_training_loader)
             SVHN_test = torchvision.datasets.SVHN(root='./data', split='test', download=True, transform=transform_train)
-            for i in range(num_agent-1):
+            for i in range(num_client-1):
                 subset_training_loader = DataLoader(
                     SVHN_test, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
                 
@@ -680,7 +680,7 @@ def get_SVHN_testloader(batch_size=16, num_workers=2, shuffle=True, extra_cls_re
 ################
 
 
-def get_celeba_trainloader(batch_size=16, num_workers=2, shuffle=True, num_agent = 1, collude_use_public = False):
+def get_celeba_trainloader(batch_size=16, num_workers=2, shuffle=True, num_client = 1, collude_use_public = False):
     """ return training dataloader
     Args:
         mean: mean of celeba training dataset
@@ -703,15 +703,15 @@ def get_celeba_trainloader(batch_size=16, num_workers=2, shuffle=True, num_agent
     ])
     
     celeba_training = torchvision.datasets.CelebA(root='./data', train=True, download=True, transform=transform_train)
-    if num_agent == 1:
+    if num_client == 1:
         celeba_training_loader = [DataLoader(
             celeba_training, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)]
     
-    elif num_agent > 1:
+    elif num_client > 1:
         celeba_training_loader = []
         if not collude_use_public:
-            for i in range(num_agent):
-                celeba_training_subset = torch.utils.data.Subset(celeba_training, list(range(i * (len(celeba_training)//num_agent), (i+1) * (len(celeba_training)//num_agent))))
+            for i in range(num_client):
+                celeba_training_subset = torch.utils.data.Subset(celeba_training, list(range(i * (len(celeba_training)//num_client), (i+1) * (len(celeba_training)//num_client))))
                 subset_training_loader = DataLoader(
                     celeba_training_subset, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
                 celeba_training_loader.append(subset_training_loader)
@@ -721,8 +721,8 @@ def get_celeba_trainloader(batch_size=16, num_workers=2, shuffle=True, num_agent
             # subset_training_loader = DataLoader(
             #     celeba_test, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             # celeba_training_loader.append(subset_training_loader)
-            # for i in range(num_agent-1):
-            #     celeba_training_subset = torch.utils.data.Subset(celeba_training, list(range(i * (len(celeba_training)//(num_agent-1)), (i+1) * (len(celeba_training)//(num_agent-1)))))
+            # for i in range(num_client-1):
+            #     celeba_training_subset = torch.utils.data.Subset(celeba_training, list(range(i * (len(celeba_training)//(num_client-1)), (i+1) * (len(celeba_training)//(num_client-1)))))
             #     subset_training_loader = DataLoader(
             #         celeba_training_subset, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             #     celeba_training_loader.append(subset_training_loader)
@@ -736,7 +736,7 @@ def get_celeba_trainloader(batch_size=16, num_workers=2, shuffle=True, num_agent
                 celeba_training, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
             celeba_training_loader.append(subset_training_loader)
             celeba_test = torchvision.datasets.CelebA(root='./data', train=False, download=True, transform=transform_train)
-            for i in range(num_agent-1):
+            for i in range(num_client-1):
                 subset_training_loader = DataLoader(
                     celeba_test, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
                 

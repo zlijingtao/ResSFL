@@ -20,7 +20,7 @@ parser.add_argument('--cutlayer', default=4, type=int, help='number of layers in
 parser.add_argument('--batch_size', default=128, type=int, help='training batch size')
 parser.add_argument('--filename', required=True, type=str, help='please type save_file name for the testing purpose')
 parser.add_argument('--folder', default="saves", type=str, help='please type folder name for the testing purpose')
-parser.add_argument('--num_agent', default=1, type=int, help='number of agent')
+parser.add_argument('--num_client', default=1, type=int, help='number of client')
 parser.add_argument('--num_epochs', default=200, type=int, help='number of epochs')
 parser.add_argument('--test_best', action='store_true', default=False, help='if True, test the best epoch')
 parser.add_argument('--dataset', default="cifar10", type=str, help='number of classes for the testing dataset')
@@ -29,10 +29,10 @@ parser.add_argument('--scheme', default="V2_epoch", type=str, help='the name of 
 parser.add_argument('--bottleneck_option', default="None", type=str, help='set bottleneck option')
 
 # test setting
-parser.add_argument('--regularization', default="None", type=str, help='apply regularization in multi-agent training.')
-parser.add_argument('--regularization_strength', default=0.0, type=float, help='regularization_strength of regularization in multi-agent training.')
+parser.add_argument('--regularization', default="None", type=str, help='apply regularization in multi-client training.')
+parser.add_argument('--regularization_strength', default=0.0, type=float, help='regularization_strength of regularization in multi-client training.')
 parser.add_argument('--average_time', default=1, type=int, help='number of time to run the MIA attack for an average performance')
-parser.add_argument('--target_agent', default=0, type=int, help='id of the target agent')
+parser.add_argument('--target_client', default=0, type=int, help='id of the target client')
 parser.add_argument('--attack_scheme', default="MIA", type=str, help='the name of the attack scheme, either MIA or MIA_mf')
 parser.add_argument('--attack_epochs', default=50, type=int, help='number of epochs for the MIA attack algorithm')
 parser.add_argument('--attack_from_later_layer', default=-1, type=int, help='set to greater than -1 if attacking at a later layer')
@@ -54,8 +54,8 @@ batch_size = args.batch_size
 cutting_layer = args.cutlayer
 date_list = []
 date_list.append(args.filename)
-num_agent = args.num_agent
-target_agent = args.target_agent
+num_client = args.num_client
+target_client = args.target_client
 mse_score_list = []
 ssim_score_list = []
 psnr_score_list = []
@@ -75,7 +75,7 @@ for date_0 in date_list:
         args.num_epochs = "best"
     save_dir_name = "./{}/{}".format(args.folder, date_0)
     mi = MIA_torch.MIA(args.arch, cutting_layer, batch_size, n_epochs = args.num_epochs, scheme = args.scheme, 
-                        num_agent = num_agent, dataset=args.dataset, save_dir= save_dir_name, 
+                        num_client = num_client, dataset=args.dataset, save_dir= save_dir_name, 
                         gan_AE_type = args.gan_AE_type, regularization_option=args.regularization, regularization_strength = args.regularization_strength, 
                         random_seed = args.random_seed, bottleneck_option = args.bottleneck_option,
                         measure_option = args.measure_option, bhtsne_option = args.bhtsne_option, attack_confidence_score = args.attack_confidence_score, 
@@ -134,9 +134,9 @@ for date_0 in date_list:
     else:
         noise_aware = False
     # '''Generate random images/activation pair:'''
-    # if mi.num_agent > 1:
+    # if mi.num_client > 1:
     #     client_iterator_list = []
-    #     for client_id in range(mi.num_agent):
+    #     for client_id in range(mi.num_client):
     #         client_iterator_list.append(iter(mi.client_dataloader[client_id]))
     # else:
     #     client_iterator_list = [iter(mi.client_dataloader)]
@@ -174,7 +174,7 @@ for date_0 in date_list:
         images = torch.load("./test_facescrub_image.pt")
         labels = torch.load("./test_facescrub_label.pt")
 
-    for client_id in range(mi.num_agent):
+    for client_id in range(mi.num_client):
         mi.save_image_act_pair(images, labels, client_id, args.num_epochs, attack_from_later_layer= args.attack_from_later_layer, attack_option= args.attack_scheme)
 
 
@@ -189,20 +189,20 @@ for date_0 in date_list:
     for random_seed in random_seed_list:
         torch.manual_seed(random_seed)
         np.random.seed(random_seed)
-        agent_mse_list = []
-        agent_ssim_list = []
-        agent_psnr_list = []
-        for j in range(num_agent):
-            if num_agent > 1 and j == target_agent: #if j == target_agent:
+        client_mse_list = []
+        client_ssim_list = []
+        client_psnr_list = []
+        for j in range(num_client):
+            if num_client > 1 and j == target_client: #if j == target_client:
                 continue
-            mse_score, ssim_score, psnr_score = mi.MIA_attack(args.attack_epochs, attack_option=args.attack_scheme, collude_agent=j, target_agent=target_agent, noise_aware = noise_aware, loss_type = args.attack_loss_type, attack_from_later_layer = args.attack_from_later_layer, MIA_optimizer=args.MIA_optimizer, MIA_lr=args.MIA_lr)
-            agent_mse_list.append(mse_score)
-            agent_ssim_list.append(ssim_score)
-            agent_psnr_list.append(psnr_score)
+            mse_score, ssim_score, psnr_score = mi.MIA_attack(args.attack_epochs, attack_option=args.attack_scheme, collude_client=j, target_client=target_client, noise_aware = noise_aware, loss_type = args.attack_loss_type, attack_from_later_layer = args.attack_from_later_layer, MIA_optimizer=args.MIA_optimizer, MIA_lr=args.MIA_lr)
+            client_mse_list.append(mse_score)
+            client_ssim_list.append(ssim_score)
+            client_psnr_list.append(psnr_score)
         
-        mse_score_list.append(np.min(np.array(agent_mse_list)))
-        ssim_score_list.append(np.max(np.array(agent_ssim_list)))
-        psnr_score_list.append(np.max(np.array(agent_psnr_list)))
+        mse_score_list.append(np.min(np.array(client_mse_list)))
+        ssim_score_list.append(np.max(np.array(client_ssim_list)))
+        psnr_score_list.append(np.max(np.array(client_psnr_list)))
     
     avg_mse_score = np.mean(np.array(mse_score_list))
     avg_ssim_score = np.mean(np.array(ssim_score_list))

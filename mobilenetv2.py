@@ -55,13 +55,13 @@ def init_weights(m):
 class MobileNet(nn.Module):
     
 
-    def __init__(self, feature, logger, num_agent = 1, num_class = 10, initialize_different = False):
+    def __init__(self, feature, logger, num_client = 1, num_class = 10, initialize_different = False):
         super(MobileNet, self).__init__()
         # NOTE: change conv1 stride 2 -> 1 for CIFAR10
-        self.current_agent = 0
+        self.current_client = 0
 
         self.local_list = []
-        for i in range(num_agent):
+        for i in range(num_client):
             if i == 0:
                 self.local_list.append(feature[0])
                 self.local_list[0].apply(init_weights)
@@ -92,12 +92,12 @@ class MobileNet(nn.Module):
         print("classifier:")
         print(self.classifier)
 
-    def switch_model(self, agent_id):
-        self.current_agent = agent_id
-        self.local = self.local_list[agent_id]
+    def switch_model(self, client_id):
+        self.current_client = client_id
+        self.local = self.local_list[client_id]
     
-    def get_current_agent(self):
-        return self.current_agent
+    def get_current_client(self):
+        return self.current_client
 
     def get_smashed_data_size(self):
         with torch.no_grad():
@@ -362,8 +362,8 @@ def make_layers(cutting_layer, cfg, in_planes, adds_bottleneck = False, bottlene
         return nn.Sequential(*local_layer_list), nn.Sequential(*cloud_layer_list)
 
 
-def MobileNetV2(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
-    return MobileNet(make_layers(cutting_layer,cfg, in_planes=32, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different)
+def MobileNetV2(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+    return MobileNet(make_layers(cutting_layer,cfg, in_planes=32, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different)
 
 # def test():
 #     net = MobileNetV2(9, None)

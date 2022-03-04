@@ -1,13 +1,12 @@
 *.code-workspace
 data
+!data/place.holder
 __pycache__
 .vscode
 .ipynb_checkpoints
-train.log
-inference.log
-/temp_run.sh
 *.tar
-!pretrained_models/**/*.tar
+pretrained_models/
+!pretrained_models/place.holder
 saves/
 old_saves/
 gan_saves/

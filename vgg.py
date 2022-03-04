@@ -28,12 +28,12 @@ class VGG(nn.Module):
     '''
     VGG model 
     '''
-    def __init__(self, feature, logger, num_agent = 1, num_class = 10, initialize_different = False):
+    def __init__(self, feature, logger, num_client = 1, num_class = 10, initialize_different = False):
         super(VGG, self).__init__()
-        self.current_agent = 0
+        self.current_client = 0
         
         self.local_list = []
-        for i in range(num_agent):
+        for i in range(num_client):
             if i == 0:
                 self.local_list.append(feature[0])
                 self.local_list[0].apply(init_weights)
@@ -66,12 +66,12 @@ class VGG(nn.Module):
         print("classifier:")
         print(self.classifier)
 
-    def switch_model(self, agent_id):
-        self.current_agent = agent_id
-        self.local = self.local_list[agent_id]
+    def switch_model(self, client_id):
+        self.current_client = client_id
+        self.local = self.local_list[client_id]
 
-    def get_current_agent(self):
-        return self.current_agent
+    def get_current_client(self):
+        return self.current_client
 
     def get_smashed_data_size(self):
         with torch.no_grad():
@@ -260,12 +260,12 @@ class VGG_vib(nn.Module):
     '''
     VGG model 
     '''
-    def __init__(self, feature, logger, num_agent = 1, num_class = 10, initialize_different = False):
+    def __init__(self, feature, logger, num_client = 1, num_class = 10, initialize_different = False):
         super(VGG_vib, self).__init__()
-        self.current_agent = 0
+        self.current_client = 0
         
         self.local_list = []
-        for i in range(num_agent):
+        for i in range(num_client):
             if i == 0:
                 self.local_list.append(feature[0])
                 self.local_list[0].apply(init_weights)
@@ -298,12 +298,12 @@ class VGG_vib(nn.Module):
         self.st_layer = nn.Linear(self.feat_dim, self.k * 2)
         # self.fc_layer = nn.Linear(self.k, num_class)
 
-    def switch_model(self, agent_id):
-        self.current_agent = agent_id
-        self.local = self.local_list[agent_id]
+    def switch_model(self, client_id):
+        self.current_client = client_id
+        self.local = self.local_list[client_id]
 
-    def get_current_agent(self):
-        return self.current_agent
+    def get_current_client(self):
+        return self.current_client
 
     def get_smashed_data_size(self):
         with torch.no_grad():
@@ -478,60 +478,60 @@ cfg = {
 }
 
 
-def vgg11(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def vgg11(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
     """VGG 11-layer model (configuration "A")"""
-    return VGG(make_layers(cutting_layer,cfg['A'], batch_norm=False, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different)
+    return VGG(make_layers(cutting_layer,cfg['A'], batch_norm=False, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different)
 
 
-def vgg11_bn(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def vgg11_bn(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
     """VGG 11-layer model (configuration "A") with batch normalization"""
-    return VGG(make_layers(cutting_layer,cfg['A'], batch_norm=True, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different)
+    return VGG(make_layers(cutting_layer,cfg['A'], batch_norm=True, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different)
 
 
-def vgg13(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def vgg13(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
     """VGG 13-layer model (configuration "B")"""
-    return VGG(make_layers(cutting_layer,cfg['B'], batch_norm=False, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different)
+    return VGG(make_layers(cutting_layer,cfg['B'], batch_norm=False, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different)
 
 
-def vgg13_bn(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def vgg13_bn(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
     """VGG 13-layer model (configuration "B") with batch normalization"""
-    return VGG(make_layers(cutting_layer,cfg['B'], batch_norm=True, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different)
+    return VGG(make_layers(cutting_layer,cfg['B'], batch_norm=True, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different)
 
-def vgg11_vib(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def vgg11_vib(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
     """VGG 11-layer model (configuration "A")"""
-    return VGG_vib(make_layers(cutting_layer,cfg['A'], batch_norm=False, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different)
+    return VGG_vib(make_layers(cutting_layer,cfg['A'], batch_norm=False, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different)
 
 
-def vgg11_bn_vib(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def vgg11_bn_vib(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
     """VGG 11-layer model (configuration "A") with batch normalization"""
-    return VGG_vib(make_layers(cutting_layer,cfg['A'], batch_norm=True, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different)
+    return VGG_vib(make_layers(cutting_layer,cfg['A'], batch_norm=True, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different)
 
 
-def vgg13_vib(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def vgg13_vib(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
     """VGG 13-layer model (configuration "B")"""
-    return VGG_vib(make_layers(cutting_layer,cfg['B'], batch_norm=False, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different)
+    return VGG_vib(make_layers(cutting_layer,cfg['B'], batch_norm=False, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different)
 
 
-def vgg13_bn_vib(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def vgg13_bn_vib(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
     """VGG 13-layer model (configuration "B") with batch normalization"""
-    return VGG_vib(make_layers(cutting_layer,cfg['B'], batch_norm=True, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different)
+    return VGG_vib(make_layers(cutting_layer,cfg['B'], batch_norm=True, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different)
 
 
-def vgg16(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def vgg16(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
     """VGG 16-layer model (configuration "D")"""
-    return VGG(make_layers(cutting_layer,cfg['D'], batch_norm=False, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different)
+    return VGG(make_layers(cutting_layer,cfg['D'], batch_norm=False, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different)
 
 
-def vgg16_bn(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def vgg16_bn(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
     """VGG 16-layer model (configuration "D") with batch normalization"""
-    return VGG(make_layers(cutting_layer,cfg['D'], batch_norm=True, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different)
+    return VGG(make_layers(cutting_layer,cfg['D'], batch_norm=True, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different)
 
 
-def vgg19(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def vgg19(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
     """VGG 19-layer model (configuration "E")"""
-    return VGG(make_layers(cutting_layer,cfg['E'], batch_norm=False, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different)
+    return VGG(make_layers(cutting_layer,cfg['E'], batch_norm=False, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different)
 
 
-def vgg19_bn(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def vgg19_bn(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
     """VGG 19-layer model (configuration 'E') with batch normalization"""
-    return VGG(make_layers(cutting_layer,cfg['E'], batch_norm=True, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different)
+    return VGG(make_layers(cutting_layer,cfg['E'], batch_norm=True, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option), logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different)

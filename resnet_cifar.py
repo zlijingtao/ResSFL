@@ -65,7 +65,7 @@ class CifarResNet(nn.Module):
   ResNet optimized for the Cifar dataset, as specified in
   https://arxiv.org/abs/1512.03385.pdf
   """
-  def __init__(self, block, depth, cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+  def __init__(self, block, depth, cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
     """ Constructor
     Args:
       depth: number of layers.
@@ -78,7 +78,7 @@ class CifarResNet(nn.Module):
     assert (depth - 2) % 6 == 0, 'depth should be one of 20, 32, 44, 56, 110'
     layer_blocks = (depth - 2) // 6
     print ('CifarResNet : Depth : {} , Layers for each block : {}'.format(depth, layer_blocks))
-    self.current_agent = 0
+    self.current_client = 0
     
 
     layers = []
@@ -160,7 +160,7 @@ class CifarResNet(nn.Module):
     self.local = nn.Sequential(*local_layer_list)
     self.cloud = nn.Sequential(*cloud_layer_list)
     self.local_list = []
-    for i in range(num_agent):
+    for i in range(num_client):
         if i == 0:
             self.local_list.append(self.local)
             self.local_list[0].apply(init_weights)
@@ -188,9 +188,9 @@ class CifarResNet(nn.Module):
             m.weight.data.normal_(0, math.sqrt(2. / n))
             if m.bias is not None:
                 m.bias.data.zero_()
-  def switch_model(self, agent_id):
-        self.current_agent = agent_id
-        self.local = self.local_list[agent_id]
+  def switch_model(self, client_id):
+        self.current_client = client_id
+        self.local = self.local_list[client_id]
 
   def get_smashed_data_size(self):
         with torch.no_grad():
@@ -403,44 +403,44 @@ class conv3x3(nn.Module):
         out = self.relu(self.bn1(self.conv1(x)))
         return out
 
-def ResNet20(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def ResNet20(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
   """Constructs a ResNet-20 model for CIFAR-10 (by default)
   Args:
     num_classes (uint): number of classes
   """
-  model = CifarResNet(ResNetBasicblock, 20, cutting_layer, logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option)
+  model = CifarResNet(ResNetBasicblock, 20, cutting_layer, logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option)
   return model
 
-def ResNet32(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def ResNet32(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
   """Constructs a ResNet-32 model for CIFAR-10 (by default)
   Args:
     num_classes (uint): number of classes
   """
-  model = CifarResNet(ResNetBasicblock, 32, cutting_layer, logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option)
+  model = CifarResNet(ResNetBasicblock, 32, cutting_layer, logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option)
   return model
 
-def ResNet44(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def ResNet44(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
   """Constructs a ResNet-44 model for CIFAR-10 (by default)
   Args:
     num_classes (uint): number of classes
   """
-  model = CifarResNet(ResNetBasicblock, 44, cutting_layer, logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option)
+  model = CifarResNet(ResNetBasicblock, 44, cutting_layer, logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option)
   return model
 
-def ResNet56(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def ResNet56(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
   """Constructs a ResNet-56 model for CIFAR-10 (by default)
   Args:
     num_classes (uint): number of classes
   """
-  model = CifarResNet(ResNetBasicblock, 56, cutting_layer, logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option)
+  model = CifarResNet(ResNetBasicblock, 56, cutting_layer, logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option)
   return model
 
-def ResNet110(cutting_layer, logger, num_agent = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
+def ResNet110(cutting_layer, logger, num_client = 1, num_class = 10, initialize_different = False, adds_bottleneck = False, bottleneck_option = "C8S1"):
   """Constructs a ResNet-110 model for CIFAR-10 (by default)
   Args:
     num_classes (uint): number of classes
   """
-  model = CifarResNet(ResNetBasicblock, 110, cutting_layer, logger, num_agent = num_agent, num_class = num_class, initialize_different = initialize_different, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option)
+  model = CifarResNet(ResNetBasicblock, 110, cutting_layer, logger, num_client = num_client, num_class = num_class, initialize_different = initialize_different, adds_bottleneck = adds_bottleneck, bottleneck_option = bottleneck_option)
   return model
 
 # def test():

@@ -54,7 +54,7 @@ def denormalize(x, dataset): # normalize a zero mean, std = 1 to range [0, 1]
     # 3, H, W, B
     tensor = x.clone().permute(1, 2, 3, 0)
     for t, m, s in zip(range(tensor.size(0)), mean, std):
-        tensor[t] = (tensor[t]-0.5).mul_(s).add_(m)
+        tensor[t] = (tensor[t]-0.5).mul_(s).add_(m) #TODO: option is -0.5 necessary?
     # B, 3, H, W
     return torch.clamp(tensor, 0, 1).permute(3, 0, 1, 2)
 
@@ -78,10 +78,10 @@ def save_images(input_imgs, output_imgs, epoch, path, offset=0, batch_size=64):
 
 class MIA:
 
-    def __init__(self, arch, cutting_layer, batch_size, n_epochs, scheme="V2_epoch", num_agent=2, dataset="cifar10",
+    def __init__(self, arch, cutting_layer, batch_size, n_epochs, scheme="V2_epoch", num_client=2, dataset="cifar10",
                  logger=None, save_dir=None, regularization_option="None", regularization_strength=0,
                  collude_use_public=False, initialize_different=False, learning_rate=0.1, local_lr = -1,
-                 gan_AE_type="custom", random_seed=123,
+                 gan_AE_type="custom", random_seed=123, client_sample_ratio = 1.0,
                  load_from_checkpoint = False, bottleneck_option="None", measure_option=False,
                  optimize_computation=1, decoder_sync = False, bhtsne_option = False, gan_loss_type = "SSIM", attack_confidence_score = False,
                  ssim_threshold = 0.0, finetune_freeze_bn = False, load_from_checkpoint_server = False, source_task = "cifar100", 
@@ -100,7 +100,7 @@ class MIA:
         self.n_epochs = n_epochs
         self.measure_option = measure_option
         self.optimize_computation = optimize_computation
-
+        self.client_sample_ratio = client_sample_ratio
         # setup save folder
         if save_dir is None:
             self.save_dir = "./saves/{}/".format(datetime.today().strftime('%m%d%H%M'))
@@ -130,7 +130,7 @@ class MIA:
         if self.scheme == "V1" or self.scheme == "V2" or self.scheme == "V3" or self.scheme == "V4":
             self.scheme = self.scheme + "_batch"
 
-        self.num_agent = num_agent
+        self.num_client = num_client
         self.dataset = dataset
         self.call_resume = False
 
@@ -241,12 +241,17 @@ class MIA:
             self.topkprune = False
             self.topkprune_ratio = regularization_strength
         
+        # dividing datasets to actual number of clients, self.num_clients is fake num of clients for ease of simulation.
+        multiplier = 1/self.client_sample_ratio #100
+        actual_num_users = int(multiplier * self.num_client)
+        self.actual_num_users = actual_num_users
+
         # setup dataset
         if self.dataset == "cifar10":
             self.client_dataloader, self.mem_trainloader, self.mem_testloader = get_cifar10_trainloader(batch_size=self.batch_size,
                                                                                                         num_workers=4,
                                                                                                         shuffle=True,
-                                                                                                        num_agent=num_agent,
+                                                                                                        num_client=num_client,
                                                                                                         collude_use_public=self.collude_use_public)
             self.pub_dataloader, self.nomem_trainloader, self.nomem_testloader = get_cifar10_testloader(batch_size=self.batch_size,
                                                                                                         num_workers=4,
@@ -256,7 +261,7 @@ class MIA:
             self.client_dataloader, self.mem_trainloader, self.mem_testloader = get_cifar100_trainloader(batch_size=self.batch_size,
                                                                                                          num_workers=4,
                                                                                                          shuffle=True,
-                                                                                                         num_agent=num_agent,
+                                                                                                         num_client=num_client,
                                                                                                          collude_use_public=self.collude_use_public)
             self.pub_dataloader, self.nomem_trainloader, self.nomem_testloader = get_cifar100_testloader(batch_size=self.batch_size,
                                                                                                          num_workers=4,
@@ -267,7 +272,7 @@ class MIA:
             self.client_dataloader, self.mem_trainloader, self.mem_testloader = get_SVHN_trainloader(batch_size=self.batch_size,
                                                                                                          num_workers=4,
                                                                                                          shuffle=True,
-                                                                                                         num_agent=num_agent,
+                                                                                                         num_client=num_client,
                                                                                                          collude_use_public=self.collude_use_public)
             self.pub_dataloader, self.nomem_trainloader, self.nomem_testloader = get_SVHN_testloader(batch_size=self.batch_size,
                                                                                                          num_workers=4,
@@ -278,21 +283,21 @@ class MIA:
             self.client_dataloader, self.pub_dataloader = get_facescrub_bothloader(batch_size=self.batch_size, 
                                                                                 num_workers=4,
                                                                                 shuffle=True,
-                                                                                num_agent=num_agent,
+                                                                                num_client=num_client,
                                                                                 collude_use_public=self.collude_use_public)
             self.orig_class = 530
         elif self.dataset == "mnist":
             self.client_dataloader, self.pub_dataloader = get_mnist_bothloader(batch_size=self.batch_size, 
                                                                                 num_workers=4,
                                                                                 shuffle=True,
-                                                                                num_agent=num_agent,
+                                                                                num_client=num_client,
                                                                                 collude_use_public=self.collude_use_public)
             self.orig_class = 10
         elif self.dataset == "fmnist":
             self.client_dataloader, self.pub_dataloader = get_fmnist_bothloader(batch_size=self.batch_size, 
                                                                                 num_workers=4,
                                                                                 shuffle=True,
-                                                                                num_agent=num_agent,
+                                                                                num_client=num_client,
                                                                                 collude_use_public=self.collude_use_public)
             self.orig_class = 10
         else:
@@ -301,7 +306,7 @@ class MIA:
 
 
         self.num_batches = len(self.client_dataloader[0])
-        print("Total number of batches per epoch for each agent is ", self.num_batches)
+        print("Total number of batches per epoch for each client is ", self.num_batches)
 
         self.model = None
 
@@ -311,32 +316,32 @@ class MIA:
                 self.initialize_different = False
 
             if arch == "resnet20":
-                model = ResNet20(cutting_layer, self.logger, num_agent=self.num_agent, num_class=self.num_class,
+                model = ResNet20(cutting_layer, self.logger, num_client=self.num_client, num_class=self.num_class,
                                  initialize_different=self.initialize_different, adds_bottleneck=self.adds_bottleneck, bottleneck_option = self.bottleneck_option)
             elif arch == "resnet32":
-                model = ResNet32(cutting_layer, self.logger, num_agent=self.num_agent, num_class=self.num_class,
+                model = ResNet32(cutting_layer, self.logger, num_client=self.num_client, num_class=self.num_class,
                                  initialize_different=self.initialize_different, adds_bottleneck=self.adds_bottleneck, bottleneck_option = self.bottleneck_option)
             elif arch == "vgg13":
-                model = vgg13(cutting_layer, self.logger, num_agent=self.num_agent, num_class=self.num_class,
+                model = vgg13(cutting_layer, self.logger, num_client=self.num_client, num_class=self.num_class,
                               initialize_different=self.initialize_different, adds_bottleneck=self.adds_bottleneck, bottleneck_option = self.bottleneck_option)
             elif arch == "vgg11":
-                model = vgg11(cutting_layer, self.logger, num_agent=self.num_agent, num_class=self.num_class,
+                model = vgg11(cutting_layer, self.logger, num_client=self.num_client, num_class=self.num_class,
                               initialize_different=self.initialize_different, adds_bottleneck=self.adds_bottleneck, bottleneck_option = self.bottleneck_option)
             elif arch == "vgg13_bn":
-                model = vgg13_bn(cutting_layer, self.logger, num_agent=self.num_agent, num_class=self.num_class,
+                model = vgg13_bn(cutting_layer, self.logger, num_client=self.num_client, num_class=self.num_class,
                                  initialize_different=self.initialize_different, adds_bottleneck=self.adds_bottleneck, bottleneck_option = self.bottleneck_option)
             elif arch == "vgg11_bn":
-                model = vgg11_bn(cutting_layer, self.logger, num_agent=self.num_agent, num_class=self.num_class,
+                model = vgg11_bn(cutting_layer, self.logger, num_client=self.num_client, num_class=self.num_class,
                                  initialize_different=self.initialize_different, adds_bottleneck=self.adds_bottleneck, bottleneck_option = self.bottleneck_option)
             elif arch == "mobilenetv2":
-                model = MobileNetV2(cutting_layer, self.logger, num_agent=self.num_agent, num_class=self.num_class,
+                model = MobileNetV2(cutting_layer, self.logger, num_client=self.num_client, num_class=self.num_class,
                                  initialize_different=self.initialize_different, adds_bottleneck=self.adds_bottleneck, bottleneck_option = self.bottleneck_option)
             else:
                 raise ("No such architecture!")
             self.model = model
 
             self.f = model.local_list[0]
-            if self.num_agent > 1:
+            if self.num_client > 1:
                 self.c = model.local_list[1]
             self.f_tail = model.cloud
             self.classifier = model.classifier
@@ -347,38 +352,38 @@ class MIA:
             self.local_params = []
             if cutting_layer > 0:
                 self.local_params.append(self.f.parameters())
-                for i in range(1, self.num_agent):
+                for i in range(1, self.num_client):
                     self.model.local_list[i].cuda()
                     self.local_params.append(self.model.local_list[i].parameters())
         else:
-            # If not V3, we set num_agent to 1 when initializing the model, because there is only one version of local model.
+            # If not V3, we set num_client to 1 when initializing the model, because there is only one version of local model.
             if arch == "resnet20":
-                model = ResNet20(cutting_layer, self.logger, num_agent=1, num_class=self.num_class,
+                model = ResNet20(cutting_layer, self.logger, num_client=1, num_class=self.num_class,
                                  initialize_different=self.initialize_different, adds_bottleneck=self.adds_bottleneck, bottleneck_option = self.bottleneck_option)
             elif arch == "resnet32":
-                model = ResNet32(cutting_layer, self.logger, num_agent=1, num_class=self.num_class,
+                model = ResNet32(cutting_layer, self.logger, num_client=1, num_class=self.num_class,
                                  initialize_different=self.initialize_different, adds_bottleneck=self.adds_bottleneck, bottleneck_option = self.bottleneck_option)
             elif arch == "vgg13":
-                model = vgg13(cutting_layer, self.logger, num_agent=1, num_class=self.num_class,
+                model = vgg13(cutting_layer, self.logger, num_client=1, num_class=self.num_class,
                               initialize_different=self.initialize_different, adds_bottleneck=self.adds_bottleneck, bottleneck_option = self.bottleneck_option)
             elif arch == "vgg11":
-                model = vgg11(cutting_layer, self.logger, num_agent=1, num_class=self.num_class,
+                model = vgg11(cutting_layer, self.logger, num_client=1, num_class=self.num_class,
                               initialize_different=self.initialize_different, adds_bottleneck=self.adds_bottleneck, bottleneck_option = self.bottleneck_option)
             elif arch == "vgg13_bn":
-                model = vgg13_bn(cutting_layer, self.logger, num_agent=1, num_class=self.num_class,
+                model = vgg13_bn(cutting_layer, self.logger, num_client=1, num_class=self.num_class,
                                  initialize_different=self.initialize_different, adds_bottleneck=self.adds_bottleneck, bottleneck_option = self.bottleneck_option)
             elif arch == "vgg11_bn":
-                model = vgg11_bn(cutting_layer, self.logger, num_agent=1, num_class=self.num_class,
+                model = vgg11_bn(cutting_layer, self.logger, num_client=1, num_class=self.num_class,
                                  initialize_different=self.initialize_different, adds_bottleneck=self.adds_bottleneck, bottleneck_option = self.bottleneck_option)
             elif arch == "mobilenetv2":
-                model = MobileNetV2(cutting_layer, self.logger, num_agent=1, num_class=self.num_class,
+                model = MobileNetV2(cutting_layer, self.logger, num_client=1, num_class=self.num_class,
                                  initialize_different=self.initialize_different, adds_bottleneck=self.adds_bottleneck, bottleneck_option = self.bottleneck_option)
             else:
                 raise ("No such architecture!")
             self.model = model
             self.f = model.local
             self.c = self.f
-            for i in range(1, self.num_agent):
+            for i in range(1, self.num_client):
                 self.model.local_list.append(self.f)
             self.f_tail = model.cloud
             self.classifier = model.classifier
@@ -393,6 +398,10 @@ class MIA:
         # setup optimizers
         self.optimizer = torch.optim.SGD(self.params, lr=self.lr, momentum=0.9, weight_decay=5e-4)
         milestones = [60, 120, 160]
+        if self.client_sample_ratio < 1.0:
+            multiplier = 1/self.client_sample_ratio
+            for i in range(len(milestones)):
+                milestones[i] = int(milestones[i] * multiplier)
         self.local_optimizer_list = []
         self.train_local_scheduler_list = []
         self.warmup_local_scheduler_list = []
@@ -411,7 +420,7 @@ class MIA:
         self.gan_params = []
         if self.gan_regularizer:
             feature_size = self.model.get_smashed_data_size()
-            for i in range(self.num_agent):
+            for i in range(self.num_client):
                 if self.gan_AE_type == "custom":
                     self.local_AE_list.append(
                         architectures.custom_AE(input_nc=feature_size[1], output_nc=3, input_dim=feature_size[2],
@@ -448,6 +457,11 @@ class MIA:
             self.gan_optimizer_list = []
             self.gan_scheduler_list = []
             milestones = [60, 120, 160]
+
+            if self.client_sample_ratio < 1.0:
+                multiplier = 1/self.client_sample_ratio
+                for i in range(len(milestones)):
+                    milestones[i] = int(milestones[i] * multiplier)
             for i in range(len(self.gan_params)):
                 self.gan_optimizer_list.append(torch.optim.Adam(list(self.gan_params[i]), lr=1e-3))
                 self.gan_scheduler_list.append(torch.optim.lr_scheduler.MultiStepLR(self.gan_optimizer_list[i], milestones=milestones,
@@ -759,7 +773,7 @@ class MIA:
             loss = loss.float()
 
             # measure accuracy and record loss
-            # prec1 = accuracy(output.data, target, compress_V4shadowlabel=self.V4shadowlabel, num_client=self.num_agent)[0] #If V4shadowlabel is activated, add one extra step to process output back to orig_class
+            # prec1 = accuracy(output.data, target, compress_V4shadowlabel=self.V4shadowlabel, num_client=self.num_client)[0] #If V4shadowlabel is activated, add one extra step to process output back to orig_class
             prec1 = accuracy(output.data, target)[
                 0]  # If V4shadowlabel is activated, add one extra step to process output back to orig_class
             losses.update(loss.item(), input.size(0))
@@ -787,7 +801,7 @@ class MIA:
         first_part = split_list[0]
         second_part = split_list[1]
         model_path_list = []
-        for i in range(self.num_agent):
+        for i in range(self.num_client):
             if i == 0:
                 model_path_list.append(path_to_infer)
             elif i == 1:
@@ -814,7 +828,7 @@ class MIA:
                 model_path_list = self.infer_path_list(model_path_f)
 
         if "V" in self.scheme:
-            for i in range(self.num_agent):
+            for i in range(self.num_client):
                 print("load client {}'s local".format(i))
                 checkpoint_i = torch.load(model_path_list[i])
                 self.model.local_list[i].cuda()
@@ -854,7 +868,7 @@ class MIA:
         global_weights = average_weights(self.model.local_list)
 
         # update global weights
-        for i in range(self.num_agent):
+        for i in range(self.num_client):
             self.model.local_list[i].load_state_dict(global_weights)
 
     def sync_decoder(self):
@@ -862,7 +876,7 @@ class MIA:
         global_weights = average_weights(self.local_AE_list)
 
         # update global weights
-        for i in range(self.num_agent):
+        for i in range(self.num_client):
             self.local_AE_list[i].load_state_dict(global_weights)
 
     def gan_train_step(self, input_images, client_id, loss_type="SSIM"):
@@ -934,9 +948,9 @@ class MIA:
         self.logger.debug("Model's smashed-data size is {}".format(str(self.model.get_smashed_data_size())))
         best_avg_accu = 0.0
         if not self.call_resume:
-            LOG = np.zeros((self.n_epochs * self.num_batches, self.num_agent))
+            LOG = np.zeros((self.n_epochs * self.num_batches, self.num_client))
             client_iterator_list = []
-            for client_id in range(self.num_agent):
+            for client_id in range(self.num_client):
                 client_iterator_list.append(iter(self.client_dataloader[client_id]))
 
             #load pre-train models
@@ -948,7 +962,7 @@ class MIA:
                     print("No valid Checkpoint Found!")
                     return
                 if "V" in self.scheme:
-                    for i in range(self.num_agent):
+                    for i in range(self.num_client):
                         print("load client {}'s local".format(i))
                         self.model.local_list[i].cuda()
                         self.model.local_list[i].load_state_dict(checkpoint_i)
@@ -971,7 +985,7 @@ class MIA:
                     self.classifier.load_state_dict(checkpoint)
 
             if self.gan_regularizer:
-                self.pre_GAN_train(30, range(self.num_agent))
+                self.pre_GAN_train(30, range(self.num_client))
 
 
             self.logger.debug("Real Train Phase: done by all clients, for total {} epochs".format(self.n_epochs))
@@ -1166,12 +1180,12 @@ class MIA:
 
         if "V" in self.scheme:
             torch.save(self.f.state_dict(), self.save_dir + 'checkpoint_f_{}.tar'.format(epoch))
-            if self.num_agent > 1:
+            if self.num_client > 1:
                 torch.save(self.c.state_dict(), self.save_dir + 'checkpoint_c_{}.tar'.format(epoch))
             torch.save(self.f_tail.state_dict(), self.save_dir + 'checkpoint_cloud_{}.tar'.format(epoch))
             torch.save(self.classifier.state_dict(), self.save_dir + 'checkpoint_classifier_{}.tar'.format(epoch))
-            if self.num_agent > 2:
-                for i in range(2, self.num_agent):
+            if self.num_client > 2:
+                for i in range(2, self.num_client):
                     torch.save(self.model.local_list[i].state_dict(),
                                 self.save_dir + 'checkpoint_local{}_{}.tar'.format(i, epoch))
         else:
@@ -1271,7 +1285,7 @@ class MIA:
 
         # Generate latest images/activation pair for all clients:
         client_iterator_list = []
-        for client_id in range(self.num_agent):
+        for client_id in range(self.num_client):
             client_iterator_list.append(iter(self.client_dataloader[client_id]))
         try:
             images, labels = next(client_iterator_list[client_id])
@@ -1339,11 +1353,11 @@ class MIA:
             # Construct a dataset for training the decoder
             trainloader, testloader = apply_transform(attack_batchsize, image_data_dir, tensor_data_dir)
 
-            # Do real test on target's agent activation (and test with target's agent ground-truth.)
+            # Do real test on target's client activation (and test with target's client ground-truth.)
             sp_testloader = apply_transform_test(1,
-                                                 self.save_dir + "/save_activation_agent_{}_epoch_{}".format(client_id,
+                                                 self.save_dir + "/save_activation_client_{}_epoch_{}".format(client_id,
                                                                                                              0),
-                                                 self.save_dir + "/save_activation_agent_{}_epoch_{}".format(client_id,
+                                                 self.save_dir + "/save_activation_client_{}_epoch_{}".format(client_id,
                                                                                                              0))
 
             # Perform Input Extraction Attack
@@ -1360,15 +1374,15 @@ class MIA:
             if os.path.isdir(tensor_data_dir):
                 rmtree(tensor_data_dir)
 
-    def MIA_attack(self, num_epochs, attack_option="MIA", collude_agent=1, target_agent=0, noise_aware=False,
+    def MIA_attack(self, num_epochs, attack_option="MIA", collude_client=1, target_client=0, noise_aware=False,
                    loss_type="MSE", attack_from_later_layer=-1, MIA_optimizer = "Adam", MIA_lr = 1e-3):
         attack_option = attack_option
         MIA_optimizer = MIA_optimizer
         MIA_lr = MIA_lr
         attack_batchsize = 32
         attack_num_epochs = num_epochs
-        model_log_file = self.save_dir + '/{}_attack_{}_{}.log'.format(attack_option, collude_agent, target_agent)
-        logger = setup_logger('{}_{}to{}_attack_logger'.format(str(self.save_dir), collude_agent, target_agent),
+        model_log_file = self.save_dir + '/{}_attack_{}_{}.log'.format(attack_option, collude_client, target_client)
+        logger = setup_logger('{}_{}to{}_attack_logger'.format(str(self.save_dir), collude_client, target_client),
                               model_log_file, level=logging.DEBUG)
         # pass
         image_data_dir = self.save_dir + "/img"
@@ -1393,7 +1407,7 @@ class MIA:
         elif self.dataset == "facescrub":
             _, val_single_loader = get_facescrub_bothloader(batch_size=1, num_workers=4, shuffle=False)
 
-        attack_path = self.save_dir + '/{}_attack_{}to{}'.format(attack_option, collude_agent, target_agent)
+        attack_path = self.save_dir + '/{}_attack_{}to{}'.format(attack_option, collude_client, target_client)
         if not os.path.isdir(attack_path):
             os.makedirs(attack_path)
             os.makedirs(attack_path + "/train")
@@ -1410,14 +1424,14 @@ class MIA:
         if ("MIA" in attack_option) and ("MIA_mf" not in attack_option):
             logger.debug("Generating IR ...... (may take a while)")
 
-            if collude_agent == 0:
+            if collude_client == 0:
                 self.gen_ir(val_single_loader, self.f, image_data_dir, tensor_data_dir,
                             attack_from_later_layer=attack_from_later_layer, attack_option = attack_option)
-            elif collude_agent == 1:
+            elif collude_client == 1:
                 self.gen_ir(val_single_loader, self.c, image_data_dir, tensor_data_dir,
                             attack_from_later_layer=attack_from_later_layer, attack_option = attack_option)
-            elif collude_agent > 1:
-                self.gen_ir(val_single_loader, self.model.local_list[collude_agent], image_data_dir, tensor_data_dir,
+            elif collude_client > 1:
+                self.gen_ir(val_single_loader, self.model.local_list[collude_client], image_data_dir, tensor_data_dir,
                             attack_from_later_layer=attack_from_later_layer, attack_option = attack_option)
             for filename in os.listdir(tensor_data_dir):
                 if ".pt" in filename:
@@ -1509,9 +1523,9 @@ class MIA:
             # Construct a dataset for training the decoder
             trainloader, testloader = apply_transform(attack_batchsize, image_data_dir, tensor_data_dir)
 
-            # Do real test on target's agent activation (and test with target's agent ground-truth.)
-            sp_testloader = apply_transform_test(1, self.save_dir + "/save_activation_agent_{}_epoch_{}".format(
-                target_agent, self.n_epochs), self.save_dir + "/save_activation_agent_{}_epoch_{}".format(target_agent,
+            # Do real test on target's client activation (and test with target's client ground-truth.)
+            sp_testloader = apply_transform_test(1, self.save_dir + "/save_activation_client_{}_epoch_{}".format(
+                target_client, self.n_epochs), self.save_dir + "/save_activation_client_{}_epoch_{}".format(target_client,
                                                                                                           self.n_epochs))
             if "gan_adv_noise" in self.regularization_option and noise_aware:
                 print("create a second decoder")
@@ -1547,7 +1561,7 @@ class MIA:
                 # optimizer2 = torch.optim.Adam(decoder2.parameters(), lr=1e-3)
                 optimizer2 = torch.optim.Adam(decoder2.parameters(), lr=1e-3)
                 self.attack(attack_num_epochs, decoder2, optimizer2, trainloader, testloader, logger, path_dict,
-                            attack_batchsize, pretrained_decoder=self.local_AE_list[collude_agent], noise_aware=noise_aware)
+                            attack_batchsize, pretrained_decoder=self.local_AE_list[collude_client], noise_aware=noise_aware)
                 decoder = decoder2  # use decoder2 for testing
             else:
                 # Perform Input Extraction Attack
@@ -1572,8 +1586,8 @@ class MIA:
             lambda_l2 = 0.0
             num_step = attack_num_epochs * 60
 
-            sp_testloader = apply_transform_test(1, self.save_dir + "/save_activation_agent_{}_epoch_{}".format(
-                target_agent, self.n_epochs), self.save_dir + "/save_activation_agent_{}_epoch_{}".format(target_agent,
+            sp_testloader = apply_transform_test(1, self.save_dir + "/save_activation_client_{}_epoch_{}".format(
+                target_client, self.n_epochs), self.save_dir + "/save_activation_client_{}_epoch_{}".format(target_client,
                                                                                                           self.n_epochs))
             criterion = nn.MSELoss().cuda()
             ssim_loss = pytorch_ssim.SSIM()
@@ -1589,8 +1603,8 @@ class MIA:
                 img = img.cuda()
                 if not fresh_option:
                     ir = ir.cuda()
-                self.model.local_list[collude_agent].eval()
-                self.model.local_list[target_agent].eval()
+                self.model.local_list[collude_client].eval()
+                self.model.local_list[target_client].eval()
 
                 fake_image = torch.zeros(img.size(), requires_grad=True, device="cuda")
                 optimizer = torch.optim.Adam(params=[fake_image], lr=8e-1, amsgrad=True, eps=1e-3)
@@ -1598,10 +1612,10 @@ class MIA:
                 for step in range(1, num_step + 1):
                     optimizer.zero_grad()
 
-                    fake_ir = self.model.local_list[collude_agent](fake_image)  # Simulate Original
+                    fake_ir = self.model.local_list[collude_client](fake_image)  # Simulate Original
 
                     if fresh_option:
-                        ir = self.model.local_list[target_agent](img)  # Getting fresh ir from target local model
+                        ir = self.model.local_list[target_client](img)  # Getting fresh ir from target local model
 
                     featureLoss = criterion(fake_ir, ir)
 
@@ -1810,7 +1824,7 @@ class MIA:
             "PSNR Loss on ALL Image is {:.4f} (Real Attack Results on the Target Client)".format(psnr_test_losses.avg))
         return all_test_losses.avg, ssim_test_losses.avg, psnr_test_losses.avg
 
-    def save_activation_bhtsne(self, save_activation, target, agent_id):
+    def save_activation_bhtsne(self, save_activation, target, client_id):
         """
             Run one train epoch
         """
@@ -1822,19 +1836,19 @@ class MIA:
         save_activation = save_activation.float()
         save_activation = save_activation.cpu().numpy()
         save_activation = save_activation.reshape(self.batch_size, -1)
-        np.savetxt(os.path.join(path_dir, "{}.txt".format(agent_id)), save_activation, fmt='%.2f')
+        np.savetxt(os.path.join(path_dir, "{}.txt".format(client_id)), save_activation, fmt='%.2f')
 
         target = target.float()
         target = target.cpu().numpy()
         target = target.reshape(self.batch_size, -1)
-        np.savetxt(os.path.join(path_dir, "{}target.txt".format(agent_id)), target, fmt='%.2f')
+        np.savetxt(os.path.join(path_dir, "{}target.txt".format(client_id)), target, fmt='%.2f')
 
     #Generate test set for MIA decoder
-    def save_image_act_pair(self, input, target, agent_id, epoch, clean_option=False, attack_from_later_layer=-1, attack_option = "MIA"):
+    def save_image_act_pair(self, input, target, client_id, epoch, clean_option=False, attack_from_later_layer=-1, attack_option = "MIA"):
         """
             Run one train epoch
         """
-        path_dir = os.path.join(self.save_dir, 'save_activation_agent_{}_epoch_{}'.format(agent_id, epoch))
+        path_dir = os.path.join(self.save_dir, 'save_activation_client_{}_epoch_{}'.format(client_id, epoch))
         if not os.path.isdir(path_dir):
             os.makedirs(path_dir)
         else:
@@ -1846,15 +1860,15 @@ class MIA:
             img = input[None, j, :, :, :]
             label = target[None, j]
             with torch.no_grad():
-                if agent_id == 0:
+                if client_id == 0:
                     self.f.eval()
                     save_activation = self.f(img)
-                elif agent_id == 1:
+                elif client_id == 1:
                     self.c.eval()
                     save_activation = self.c(img)
-                elif agent_id > 1:
-                    self.model.local_list[agent_id].eval()
-                    save_activation = self.model.local_list[agent_id](img)
+                elif client_id > 1:
+                    self.model.local_list[client_id].eval()
+                    save_activation = self.model.local_list[client_id](img)
                 if self.confidence_score:
                     self.model.cloud.eval()
                     save_activation = self.model.cloud(save_activation)
@@ -1914,11 +1928,11 @@ class MIA:
                 
             if self.gan_noise and not clean_option:
                 epsilon = self.alpha2
-                self.local_AE_list[agent_id].eval()
+                self.local_AE_list[client_id].eval()
                 fake_act = save_activation.clone()
                 grad = torch.zeros_like(save_activation).cuda()
                 fake_act = torch.autograd.Variable(fake_act.cuda(), requires_grad=True)
-                x_recon = self.local_AE_list[agent_id](fake_act)
+                x_recon = self.local_AE_list[client_id](fake_act)
                 
                 if self.gan_loss_type == "SSIM":
                     ssim_loss = pytorch_ssim.SSIM()
