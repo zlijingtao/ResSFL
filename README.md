@@ -17,10 +17,29 @@ thop (pip install)
 * *main_test_MIA.py*: Entry code to resume a trained model and perform MIA attack.
 
 ## Proof Of Concepts:
-Run scripts directly in ./reproduce/ to reproduce main results in the manuscript. You must have a GPU with >= 8 GB memory.
+Run scripts directly in ./reproduce/ to reproduce main results in the manuscript. You must have a GPU (CUDA-enabled) with >= 8 GB memory.
 
-For example:
+Recommend sequence to execute:
+```
+bash reproduce/ace_run_without_defense.sh
+bash reproduce/ace_run_table6.sh
+```
 
+Comparison table:
 ```
-bash reproduce/ace_run_table3.sh
+bash reproduce/ace_run_table4.sh
 ```
+
+Multi-client performance (with sampling, scale to 100 clients):
+```
+bash reproduce/ace_run_table2.sh
+bash reproduce/ace_run_table2_sample.sh
+```
+
+
+
+List of additional experiments in supplementary material:
+
+1. Performance against Optimization-based MI attack
+2. Performance on clients with Non-iid data
+3. Extra empirical evidence on successful resistance transfer
