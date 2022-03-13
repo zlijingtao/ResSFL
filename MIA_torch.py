@@ -1658,17 +1658,11 @@ class MIA:
                 if not os.path.isdir(test_output_path + "/{}".format(attack_num_epochs)):
                     os.mkdir(test_output_path + "/{}".format(attack_num_epochs))
                 
-                # imgGen = denormalize(imgGen, self.dataset) #TODO: test whether this is needed.
                 torchvision.utils.save_image(imgGen, test_output_path + '/{}/out_{}.jpg'.format(attack_num_epochs,
                                                                                                  num * attack_batchsize + attack_batchsize))
                 
-                # imgOrig = denormalize(imgOrig, self.dataset)
                 torchvision.utils.save_image(imgOrig, test_output_path + '/{}/inp_{}.jpg'.format(attack_num_epochs,
                                                                                                  num * attack_batchsize + attack_batchsize))
-                # imgGen = deprocess(imgGen, self.num_class)
-                # imgOrig = deprocess(imgOrig, self.num_class)
-                # torchvision.utils.save_image(imgGen, test_output_path + '/{}/dp_out_{}.jpg'.format(attack_num_epochs, num*attack_batchsize + attack_batchsize))
-                # torchvision.utils.save_image(imgOrig, test_output_path + '/{}/dp_inp_{}.jpg'.format(attack_num_epochs, num*attack_batchsize + attack_batchsize))
             logger.debug("MSE Loss on ALL Image is {:.4f} (Real Attack Results on the Target Client)".format(
                 all_test_losses.avg))
             logger.debug("SSIM Loss on ALL Image is {:.4f} (Real Attack Results on the Target Client)".format(
@@ -1683,7 +1677,6 @@ class MIA:
         min_val_loss = 999.
         max_val_loss = 0.
         train_output_freq = 10
-        # test_output_freq = 50
         train_losses = AverageMeter()
         val_losses = AverageMeter()
 
@@ -1969,5 +1962,5 @@ class MIA:
             torch.save(label.cpu(), os.path.join(path_dir, "{}.label".format(j)))
 
 
-if __name__ == "__main__":
-    print(test_denorm())
+# if __name__ == "__main__":
+#     print(test_denorm())
