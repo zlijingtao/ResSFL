@@ -1,7 +1,7 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 cd ../../
-GPU_id=5
+GPU_id=0
 arch=vgg11_bn
 batch_size=128
 
@@ -84,6 +84,7 @@ for bc in $bc_list; do
                                                         --attack_scheme=$attack_scheme --attack_scheme=$attack_scheme --attack_epochs=$attack_epochs  --bottleneck_option ${bottleneck_option}\
                                                         --average_time=$average_time --gan_AE_type ${test_gan_AE_type} --regularization=$regularization  --regularization_strength=${regularization_strength} --folder ${folder_name}
                                                 
+                                                mkdir pretrained_models
                                                 pretrain_dir=pretrained_models/${arch}_cutlayer_${cutlayer}_bottleneck_${bottleneck_option}_dataset_${dataset}
                                                 mkdir ${pretrain_dir}
                                                 save_dir=${folder_name}/${filename}

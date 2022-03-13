@@ -22,7 +22,6 @@ from shutil import rmtree
 from datasets_torch import get_cifar100_trainloader, get_cifar100_testloader, get_cifar10_trainloader, \
     get_cifar10_testloader, get_mnist_bothloader, get_facescrub_bothloader, get_SVHN_trainloader, get_SVHN_testloader, get_fmnist_bothloader
 
-DENORMALIZE_OPTION=True
 def init_weights(m):
     if type(m) == nn.Linear:
         torch.nn.init.xavier_uniform_(m.weight, gain=1.0)
@@ -32,6 +31,7 @@ def init_weights(m):
         torch.nn.init.xavier_uniform_(m.weight, gain=1.0)
         if m.bias is not None:
             m.bias.data.zero_()
+
 def denormalize(x, dataset): # normalize a zero mean, std = 1 to range [0, 1]
     
     if dataset == "mnist" or dataset == "fmnist":
@@ -54,9 +54,30 @@ def denormalize(x, dataset): # normalize a zero mean, std = 1 to range [0, 1]
     # 3, H, W, B
     tensor = x.clone().permute(1, 2, 3, 0)
     for t, m, s in zip(range(tensor.size(0)), mean, std):
-        tensor[t] = (tensor[t]-0.5).mul_(s).add_(m) #TODO: option is -0.5 necessary?
+        tensor[t] = (tensor[t]).mul_(s).add_(m)
     # B, 3, H, W
     return torch.clamp(tensor, 0, 1).permute(3, 0, 1, 2)
+
+def test_denorm():
+    CIFAR100_TRAIN_MEAN = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343)
+    CIFAR100_TRAIN_STD = (0.2673342858792401, 0.2564384629170883, 0.27615047132568404)
+    import torchvision.transforms as transforms
+    from torch.utils.data import DataLoader
+    transform_train = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(CIFAR100_TRAIN_MEAN, CIFAR100_TRAIN_STD)
+    ])
+    cifar10_training = torchvision.datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_train)
+    cifar10_training_loader_iter = iter(DataLoader(cifar10_training, shuffle=False, num_workers=1, batch_size=128))
+    transform_orig = transforms.Compose([
+        transforms.ToTensor()
+    ])
+    cifar10_original = torchvision.datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_orig)
+    cifar10_original_loader_iter = iter(DataLoader(cifar10_original, shuffle=False, num_workers=1, batch_size=128))
+    images, _ = next(cifar10_training_loader_iter)
+    orig_image, _  = next(cifar10_original_loader_iter)
+    recovered_image = denormalize(images, "cifar100")
+    return torch.isclose(orig_image, recovered_image)
 
 def save_images(input_imgs, output_imgs, epoch, path, offset=0, batch_size=64):
     """
@@ -544,8 +565,7 @@ class MIA:
             grad = torch.zeros_like(z_private).cuda()
             fake_act = torch.autograd.Variable(fake_act.cuda(), requires_grad=True)
             x_recon = self.local_AE_list[client_id](fake_act)
-            if DENORMALIZE_OPTION:
-                x_private = denormalize(x_private, self.dataset)
+            x_private = denormalize(x_private, self.dataset)
             
             if self.gan_loss_type == "SSIM":
                 ssim_loss = pytorch_ssim.SSIM()
@@ -591,8 +611,8 @@ class MIA:
         if self.gan_regularizer and not self.gan_noise:
             self.local_AE_list[client_id].eval()
             output_image = self.local_AE_list[client_id](z_private)
-            if DENORMALIZE_OPTION:
-                x_private = denormalize(x_private, self.dataset)
+            
+            x_private = denormalize(x_private, self.dataset)
             '''MSE is poor in regularization here. unstable. We stick to SSIM'''
             if self.gan_loss_type == "SSIM":
                 ssim_loss = pytorch_ssim.SSIM()
@@ -709,8 +729,8 @@ class MIA:
                 grad = torch.zeros_like(output).cuda()
                 fake_act = torch.autograd.Variable(fake_act.cuda(), requires_grad=True)
                 x_recon = self.local_AE_list[client_id](fake_act)
-                if DENORMALIZE_OPTION:
-                    input = denormalize(input, self.dataset)
+                
+                input = denormalize(input, self.dataset)
 
                 if self.gan_loss_type == "SSIM":
                     ssim_loss = pytorch_ssim.SSIM()
@@ -892,8 +912,7 @@ class MIA:
 
         x_private, z_private = Variable(input_images).to(device), Variable(z_private)
 
-        if DENORMALIZE_OPTION:
-            x_private = denormalize(x_private, self.dataset)
+        x_private = denormalize(x_private, self.dataset)
 
         if self.gan_noise:
             epsilon = self.alpha2
@@ -1273,8 +1292,8 @@ class MIA:
 
             inp_img_path = "{}/{}.jpg".format(img_folder, file_id)
             out_tensor_path = "{}/{}.pt".format(intermed_reps_folder, file_id)
-            if DENORMALIZE_OPTION:
-                input = denormalize(input, self.dataset)
+            
+            input = denormalize(input, self.dataset)
             save_image(input, inp_img_path)
             torch.save(ir.cpu(), out_tensor_path)
             file_id += 1
@@ -1424,15 +1443,9 @@ class MIA:
         if ("MIA" in attack_option) and ("MIA_mf" not in attack_option):
             logger.debug("Generating IR ...... (may take a while)")
 
-            if collude_client == 0:
-                self.gen_ir(val_single_loader, self.f, image_data_dir, tensor_data_dir,
-                            attack_from_later_layer=attack_from_later_layer, attack_option = attack_option)
-            elif collude_client == 1:
-                self.gen_ir(val_single_loader, self.c, image_data_dir, tensor_data_dir,
-                            attack_from_later_layer=attack_from_later_layer, attack_option = attack_option)
-            elif collude_client > 1:
-                self.gen_ir(val_single_loader, self.model.local_list[collude_client], image_data_dir, tensor_data_dir,
-                            attack_from_later_layer=attack_from_later_layer, attack_option = attack_option)
+            self.gen_ir(val_single_loader, self.model.local_list[collude_client], image_data_dir, tensor_data_dir,
+                    attack_from_later_layer=attack_from_later_layer, attack_option = attack_option)
+            
             for filename in os.listdir(tensor_data_dir):
                 if ".pt" in filename:
                     sampled_tensor = torch.load(tensor_data_dir + "/" + filename)
@@ -1483,6 +1496,7 @@ class MIA:
                 macs, num_param = profile(decoder, inputs=(noise_input,))
                 self.logger.debug(
                     "{} Decoder Model's Mac and Param are {} and {}".format(self.gan_AE_type, macs, num_param))
+                
                 '''Uncomment below to also get decoder's inference and training time overhead.'''
                 # decoder.cpu()
                 # noise_input = torch.randn([128, input_nc, input_dim, input_dim])
@@ -1596,7 +1610,6 @@ class MIA:
             psnr_test_losses = AverageMeter()
             fresh_option = True
             for num, data in enumerate(sp_testloader, 1):
-                # img, ir, _ = data
                 img, ir, _ = data
 
                 # optimize a fake_image to (1) have similar ir, (2) have small total variance, (3) have small l2
@@ -1644,12 +1657,12 @@ class MIA:
                 psnr_test_losses.update(psnr_loss_val.item(), ir.size(0))
                 if not os.path.isdir(test_output_path + "/{}".format(attack_num_epochs)):
                     os.mkdir(test_output_path + "/{}".format(attack_num_epochs))
-                if DENORMALIZE_OPTION:
-                    imgGen = denormalize(imgGen, self.dataset)
+                
+                # imgGen = denormalize(imgGen, self.dataset) #TODO: test whether this is needed.
                 torchvision.utils.save_image(imgGen, test_output_path + '/{}/out_{}.jpg'.format(attack_num_epochs,
                                                                                                  num * attack_batchsize + attack_batchsize))
-                if DENORMALIZE_OPTION:
-                    imgOrig = denormalize(imgOrig, self.dataset)
+                
+                # imgOrig = denormalize(imgOrig, self.dataset)
                 torchvision.utils.save_image(imgOrig, test_output_path + '/{}/inp_{}.jpg'.format(attack_num_epochs,
                                                                                                  num * attack_batchsize + attack_batchsize))
                 # imgGen = deprocess(imgGen, self.num_class)
@@ -1923,8 +1936,8 @@ class MIA:
                 save_activation = dropout_defense(save_activation, self.dropout_ratio)
             if self.topkprune and not clean_option:
                 save_activation = prune_defense(save_activation, self.topkprune_ratio)
-            if DENORMALIZE_OPTION:
-                img = denormalize(img, self.dataset)
+            
+            img = denormalize(img, self.dataset)
                 
             if self.gan_noise and not clean_option:
                 epsilon = self.alpha2
@@ -1954,3 +1967,7 @@ class MIA:
             save_image(img, os.path.join(path_dir, "{}.jpg".format(j)))
             torch.save(save_activation.cpu(), os.path.join(path_dir, "{}.pt".format(j)))
             torch.save(label.cpu(), os.path.join(path_dir, "{}.label".format(j)))
+
+
+if __name__ == "__main__":
+    print(test_denorm())

@@ -1,7 +1,7 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 cd ../../
-GPU_id=7
+GPU_id=5
 arch=vgg11_bn
 batch_size=128
 
@@ -29,11 +29,11 @@ for dataset in $dataset_list; do
                         for cutlayer in $cutlayer_list; do
                                 for num_client in $num_client_list; do
                                         filename=ace_${scheme}_${arch}_cutlayer_${cutlayer}_client_${num_client}_seed${random_seed}_dataset_${dataset}_lr_${learning_rate}_${regularization}_both_${train_gan_AE_type}_${regularization_strength}_${num_epochs}epoch_bottleneck_${bottleneck_option}
-                                        CUDA_VISIBLE_DEVICES=${GPU_id} python main_MIA.py --arch=${arch}  --cutlayer=$cutlayer --batch_size=${batch_size} \
-                                                --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
-                                                --dataset=$dataset --scheme=$scheme --regularization=${regularization} --regularization_strength=${regularization_strength}\
-                                                --random_seed=$random_seed --learning_rate=$learning_rate --gan_AE_type ${train_gan_AE_type} --gan_loss_type ${gan_loss_type}\
-                                                --local_lr $local_lr --bottleneck_option ${bottleneck_option} --folder ${folder_name}
+                                        # CUDA_VISIBLE_DEVICES=${GPU_id} python main_MIA.py --arch=${arch}  --cutlayer=$cutlayer --batch_size=${batch_size} \
+                                        #         --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
+                                        #         --dataset=$dataset --scheme=$scheme --regularization=${regularization} --regularization_strength=${regularization_strength}\
+                                        #         --random_seed=$random_seed --learning_rate=$learning_rate --gan_AE_type ${train_gan_AE_type} --gan_loss_type ${gan_loss_type}\
+                                        #         --local_lr $local_lr --bottleneck_option ${bottleneck_option} --folder ${folder_name}
 
                                         target_client=0
                                         attack_scheme=MIA

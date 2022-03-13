@@ -1,7 +1,7 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 cd ../../
-GPU_id=5
+GPU_id=0
 arch=vgg11_bn
 batch_size=128
 
@@ -31,59 +31,60 @@ for bc in $bc_list; do
                                 for cutlayer in $cutlayer_list; do
                                         for num_client in $num_client_list; do
                                                 filename=ace_${scheme}_${arch}_cutlayer_${cutlayer}_client_${num_client}_seed${random_seed}_dataset_${dataset}_lr_${learning_rate}_${regularization}_both_${train_gan_AE_type}_${regularization_strength}_${num_epochs}epoch_bottleneck_${bottleneck_option}_ssim_${ssim_threshold}
-                                                # CUDA_VISIBLE_DEVICES=${GPU_id} python main_MIA.py --arch=${arch}  --cutlayer=$cutlayer --batch_size=${batch_size} \
-                                                #         --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
-                                                #         --dataset=$dataset --scheme=$scheme --regularization=${regularization} --regularization_strength=${regularization_strength}\
-                                                #         --random_seed=$random_seed --learning_rate=$learning_rate --gan_AE_type ${train_gan_AE_type} --gan_loss_type ${gan_loss_type}\
-                                                #         --local_lr $local_lr --bottleneck_option ${bottleneck_option} --folder ${folder_name} --ssim_threshold ${ssim_threshold}
+                                                CUDA_VISIBLE_DEVICES=${GPU_id} python main_MIA.py --arch=${arch}  --cutlayer=$cutlayer --batch_size=${batch_size} \
+                                                        --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
+                                                        --dataset=$dataset --scheme=$scheme --regularization=${regularization} --regularization_strength=${regularization_strength}\
+                                                        --random_seed=$random_seed --learning_rate=$learning_rate --gan_AE_type ${train_gan_AE_type} --gan_loss_type ${gan_loss_type}\
+                                                        --local_lr $local_lr --bottleneck_option ${bottleneck_option} --folder ${folder_name} --ssim_threshold ${ssim_threshold}
 
-                                                # target_client=0
-                                                # attack_scheme=MIA
-                                                # attack_epochs=50
-                                                # average_time=1
+                                                target_client=0
+                                                attack_scheme=MIA
+                                                attack_epochs=50
+                                                average_time=1
 
-                                                # internal_C=16
-                                                # N=0
-                                                # test_gan_AE_type=conv_normN${N}C${internal_C}
+                                                internal_C=16
+                                                N=0
+                                                test_gan_AE_type=conv_normN${N}C${internal_C}
 
-                                                # CUDA_VISIBLE_DEVICES=${GPU_id} python main_test_MIA.py --arch=${arch} --cutlayer=$cutlayer --batch_size=${batch_size} \
-                                                #         --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
-                                                #         --dataset=$dataset --scheme=$scheme --target_client=${target_client} --test_best\
-                                                #         --attack_scheme=$attack_scheme --attack_scheme=$attack_scheme --attack_epochs=$attack_epochs  --bottleneck_option ${bottleneck_option}\
-                                                #         --average_time=$average_time --gan_AE_type ${test_gan_AE_type} --regularization=$regularization  --regularization_strength=${regularization_strength} --folder ${folder_name}
+                                                CUDA_VISIBLE_DEVICES=${GPU_id} python main_test_MIA.py --arch=${arch} --cutlayer=$cutlayer --batch_size=${batch_size} \
+                                                        --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
+                                                        --dataset=$dataset --scheme=$scheme --target_client=${target_client} --test_best\
+                                                        --attack_scheme=$attack_scheme --attack_scheme=$attack_scheme --attack_epochs=$attack_epochs  --bottleneck_option ${bottleneck_option}\
+                                                        --average_time=$average_time --gan_AE_type ${test_gan_AE_type} --regularization=$regularization  --regularization_strength=${regularization_strength} --folder ${folder_name}
 
-                                                # internal_C=16
-                                                # N=0
-                                                # test_gan_AE_type=res_normN${N}C${internal_C}
+                                                internal_C=16
+                                                N=0
+                                                test_gan_AE_type=res_normN${N}C${internal_C}
 
-                                                # CUDA_VISIBLE_DEVICES=${GPU_id} python main_test_MIA.py --arch=${arch} --cutlayer=$cutlayer --batch_size=${batch_size} \
-                                                #         --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
-                                                #         --dataset=$dataset --scheme=$scheme --target_client=${target_client} --test_best\
-                                                #         --attack_scheme=$attack_scheme --attack_scheme=$attack_scheme --attack_epochs=$attack_epochs  --bottleneck_option ${bottleneck_option}\
-                                                #         --average_time=$average_time --gan_AE_type ${test_gan_AE_type} --regularization=$regularization  --regularization_strength=${regularization_strength} --folder ${folder_name}
+                                                CUDA_VISIBLE_DEVICES=${GPU_id} python main_test_MIA.py --arch=${arch} --cutlayer=$cutlayer --batch_size=${batch_size} \
+                                                        --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
+                                                        --dataset=$dataset --scheme=$scheme --target_client=${target_client} --test_best\
+                                                        --attack_scheme=$attack_scheme --attack_scheme=$attack_scheme --attack_epochs=$attack_epochs  --bottleneck_option ${bottleneck_option}\
+                                                        --average_time=$average_time --gan_AE_type ${test_gan_AE_type} --regularization=$regularization  --regularization_strength=${regularization_strength} --folder ${folder_name}
                                                 
                                                 
-                                                # internal_C=32
-                                                # N=2
-                                                # test_gan_AE_type=res_normN${N}C${internal_C}
+                                                internal_C=32
+                                                N=2
+                                                test_gan_AE_type=res_normN${N}C${internal_C}
 
-                                                # CUDA_VISIBLE_DEVICES=${GPU_id} python main_test_MIA.py --arch=${arch} --cutlayer=$cutlayer --batch_size=${batch_size} \
-                                                #         --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
-                                                #         --dataset=$dataset --scheme=$scheme --target_client=${target_client} --test_best\
-                                                #         --attack_scheme=$attack_scheme --attack_scheme=$attack_scheme --attack_epochs=$attack_epochs  --bottleneck_option ${bottleneck_option}\
-                                                #         --average_time=$average_time --gan_AE_type ${test_gan_AE_type} --regularization=$regularization  --regularization_strength=${regularization_strength} --folder ${folder_name}
+                                                CUDA_VISIBLE_DEVICES=${GPU_id} python main_test_MIA.py --arch=${arch} --cutlayer=$cutlayer --batch_size=${batch_size} \
+                                                        --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
+                                                        --dataset=$dataset --scheme=$scheme --target_client=${target_client} --test_best\
+                                                        --attack_scheme=$attack_scheme --attack_scheme=$attack_scheme --attack_epochs=$attack_epochs  --bottleneck_option ${bottleneck_option}\
+                                                        --average_time=$average_time --gan_AE_type ${test_gan_AE_type} --regularization=$regularization  --regularization_strength=${regularization_strength} --folder ${folder_name}
                                                 
 
-                                                # internal_C=64
-                                                # N=4
-                                                # test_gan_AE_type=res_normN${N}C${internal_C}
+                                                internal_C=64
+                                                N=4
+                                                test_gan_AE_type=res_normN${N}C${internal_C}
 
-                                                # CUDA_VISIBLE_DEVICES=${GPU_id} python main_test_MIA.py --arch=${arch} --cutlayer=$cutlayer --batch_size=${batch_size} \
-                                                #         --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
-                                                #         --dataset=$dataset --scheme=$scheme --target_client=${target_client} --test_best\
-                                                #         --attack_scheme=$attack_scheme --attack_scheme=$attack_scheme --attack_epochs=$attack_epochs  --bottleneck_option ${bottleneck_option}\
-                                                #         --average_time=$average_time --gan_AE_type ${test_gan_AE_type} --regularization=$regularization  --regularization_strength=${regularization_strength} --folder ${folder_name}
+                                                CUDA_VISIBLE_DEVICES=${GPU_id} python main_test_MIA.py --arch=${arch} --cutlayer=$cutlayer --batch_size=${batch_size} \
+                                                        --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
+                                                        --dataset=$dataset --scheme=$scheme --target_client=${target_client} --test_best\
+                                                        --attack_scheme=$attack_scheme --attack_scheme=$attack_scheme --attack_epochs=$attack_epochs  --bottleneck_option ${bottleneck_option}\
+                                                        --average_time=$average_time --gan_AE_type ${test_gan_AE_type} --regularization=$regularization  --regularization_strength=${regularization_strength} --folder ${folder_name}
                                                 
+                                                mkdir pretrained_models
                                                 pretrain_dir=pretrained_models/${arch}_cutlayer_${cutlayer}_bottleneck_${bottleneck_option}_dataset_${dataset}
                                                 mkdir ${pretrain_dir}
                                                 save_dir=${folder_name}/${filename}
