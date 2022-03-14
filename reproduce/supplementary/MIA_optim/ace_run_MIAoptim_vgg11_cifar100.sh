@@ -58,23 +58,6 @@ for bc in $bc_list; do
                                                                         --average_time=$average_time --gan_AE_type ${test_gan_AE_type} --regularization=$regularization  --regularization_strength=${regularization_strength} --folder ${folder_name}
                                                         done
                                                 done
-
-                                                attack_from_later_layer_list="-1"
-                                                num_epochs_list="0 1 2 5 10 20 50 100 200"
-                                                for attack_from_later_layer in ${attack_from_later_layer_list}; do
-                                                        for num_epochs in $num_epochs_list; do
-                                                                
-                                                                internal_C=32
-                                                                N=2
-                                                                test_gan_AE_type=res_normN${N}C${internal_C}
-
-                                                                CUDA_VISIBLE_DEVICES=${GPU_id} python main_test_MIA.py --arch=${arch} --cutlayer=$cutlayer --batch_size=${batch_size} \
-                                                                        --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
-                                                                        --dataset=$dataset --scheme=$scheme --target_client=${target_client} --attack_from_later_layer $attack_from_later_layer\
-                                                                        --attack_scheme=$attack_scheme --attack_scheme=$attack_scheme --attack_epochs=$attack_epochs  --bottleneck_option ${bottleneck_option}\
-                                                                        --average_time=$average_time --gan_AE_type ${test_gan_AE_type} --regularization=$regularization  --regularization_strength=${regularization_strength} --folder ${folder_name}
-                                                        done
-                                                done
                                         done
                                 done
                         done
@@ -112,23 +95,6 @@ for random_seed in $random_seed_list; do
                                                                 
                                                                 internal_C=64
                                                                 N=4
-                                                                test_gan_AE_type=res_normN${N}C${internal_C}
-
-                                                                CUDA_VISIBLE_DEVICES=${GPU_id} python main_test_MIA.py --arch=${arch} --cutlayer=$cutlayer --batch_size=${batch_size} \
-                                                                        --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
-                                                                        --dataset=$dataset --scheme=$scheme --target_client=${target_client} --attack_from_later_layer $attack_from_later_layer\
-                                                                        --attack_scheme=$attack_scheme --attack_scheme=$attack_scheme --attack_epochs=$attack_epochs  --bottleneck_option ${bottleneck_option}\
-                                                                        --average_time=$average_time --gan_AE_type ${test_gan_AE_type} --regularization=$regularization  --regularization_strength=${regularization_strength} --folder ${folder_name}
-                                                        done
-                                                done
-
-                                                attack_from_later_layer_list="-1"
-                                                num_epochs_list="0 1 2 5 10 20 50 100 200"
-                                                for attack_from_later_layer in ${attack_from_later_layer_list}; do
-                                                        for num_epochs in $num_epochs_list; do
-                                                                
-                                                                internal_C=32
-                                                                N=2
                                                                 test_gan_AE_type=res_normN${N}C${internal_C}
 
                                                                 CUDA_VISIBLE_DEVICES=${GPU_id} python main_test_MIA.py --arch=${arch} --cutlayer=$cutlayer --batch_size=${batch_size} \
