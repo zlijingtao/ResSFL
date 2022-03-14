@@ -8,11 +8,5 @@ __pycache__
 pretrained_models/
 !pretrained_models/place.holder
 saves/
-old_saves/
-gan_saves/
-saves_old/
-old_saves_1/
-old_saves_2/
 new_saves/
-recent_saves/
-runs/
+supple_saves/
