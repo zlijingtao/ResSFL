@@ -20,9 +20,9 @@ from datetime import datetime
 import os
 from shutil import rmtree
 from datasets_torch import get_cifar100_trainloader, get_cifar100_testloader, get_cifar10_trainloader, \
-    get_cifar10_testloader, get_mnist_bothloader, get_facescrub_bothloader, get_SVHN_trainloader, get_SVHN_testloader, get_fmnist_bothloader
+    get_cifar10_testloader, get_mnist_bothloader, get_facescrub_bothloader, get_SVHN_trainloader, get_SVHN_testloader, get_fmnist_bothloader, get_tinyimagenet_bothloader
 
-def init_weights(m):
+def init_weights(m): # weight initialization
     if type(m) == nn.Linear:
         torch.nn.init.xavier_uniform_(m.weight, gain=1.0)
         if m.bias is not None:
@@ -58,7 +58,7 @@ def denormalize(x, dataset): # normalize a zero mean, std = 1 to range [0, 1]
     # B, 3, H, W
     return torch.clamp(tensor, 0, 1).permute(3, 0, 1, 2)
 
-def test_denorm():
+def test_denorm(): # test function for denorm
     CIFAR100_TRAIN_MEAN = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343)
     CIFAR100_TRAIN_STD = (0.2673342858792401, 0.2564384629170883, 0.27615047132568404)
     import torchvision.transforms as transforms
@@ -79,7 +79,7 @@ def test_denorm():
     recovered_image = denormalize(images, "cifar100")
     return torch.isclose(orig_image, recovered_image)
 
-def save_images(input_imgs, output_imgs, epoch, path, offset=0, batch_size=64):
+def save_images(input_imgs, output_imgs, epoch, path, offset=0, batch_size=64): # saved image from tensor to jpg
     """
     """
     input_prefix = "inp_"
@@ -97,7 +97,7 @@ def save_images(input_imgs, output_imgs, epoch, path, offset=0, batch_size=64):
         if output_imgs is not None:
             save_image(output_imgs[img_idx], out_img_path)
 
-class MIA:
+class MIA: # main class for every thing
 
     def __init__(self, arch, cutting_layer, batch_size, n_epochs, scheme="V2_epoch", num_client=2, dataset="cifar10",
                  logger=None, save_dir=None, regularization_option="None", regularization_strength=0,
@@ -106,22 +106,29 @@ class MIA:
                  load_from_checkpoint = False, bottleneck_option="None", measure_option=False,
                  optimize_computation=1, decoder_sync = False, bhtsne_option = False, gan_loss_type = "SSIM", attack_confidence_score = False,
                  ssim_threshold = 0.0, finetune_freeze_bn = False, load_from_checkpoint_server = False, source_task = "cifar100", 
-                 save_activation_tensor = False, save_more_checkpoints = False):
+                 save_activation_tensor = False, save_more_checkpoints = False, dataset_portion = 1.0, noniid = 1.0):
         torch.manual_seed(random_seed)
         np.random.seed(random_seed)
+        
         self.arch = arch
         self.bhtsne = bhtsne_option
         self.batch_size = batch_size
         self.lr = learning_rate
         self.finetune_freeze_bn = finetune_freeze_bn
+
         if local_lr == -1: # if local_lr is not set
             self.local_lr = self.lr
         else:
             self.local_lr = local_lr
+
         self.n_epochs = n_epochs
         self.measure_option = measure_option
         self.optimize_computation = optimize_computation
         self.client_sample_ratio = client_sample_ratio
+        self.dataset_portion = dataset_portion
+        self.noniid_ratio = noniid
+        self.save_more_checkpoints = save_more_checkpoints
+
         # setup save folder
         if save_dir is None:
             self.save_dir = "./saves/{}/".format(datetime.today().strftime('%m%d%H%M'))
@@ -129,8 +136,7 @@ class MIA:
             self.save_dir = str(save_dir) + "/"
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
-        self.save_more_checkpoints = save_more_checkpoints
-        
+
         # setup tensorboard
         tensorboard_path = str(save_dir) + "/tensorboard"
         if not os.path.isdir(tensorboard_path):
@@ -144,6 +150,7 @@ class MIA:
             self.logger = logger
         else:
             self.logger = setup_logger('{}_logger'.format(str(save_dir)), model_log_file, level=logging.DEBUG)
+        
         self.warm = 1
         self.scheme = scheme
 
@@ -170,7 +177,6 @@ class MIA:
             self.logger.debug("Split Learning Scheme: Overall Cutting_layer {}/9".format(self.cutting_layer))
         
         self.confidence_score = attack_confidence_score
-        
         self.collude_use_public = collude_use_public
         self.initialize_different = initialize_different
         
@@ -182,7 +188,8 @@ class MIA:
             self.bottleneck_option = bottleneck_option
         
         self.decoder_sync = decoder_sync
-        # Activation Defense:
+
+        ''' Activation Defense '''
         self.regularization_option = regularization_option
 
         # If strength is 0.0, then there is no regularization applied, train normally.
@@ -224,6 +231,7 @@ class MIA:
         else:
             self.gan_regularizer = False
             self.gan_noise = False
+            self.gan_num_step = 1
 
         # setup local dp (noise-injection defense)
         if "local_dp" in self.regularization_option:
@@ -232,13 +240,6 @@ class MIA:
             self.local_DP = False
 
         self.dp_epsilon = regularization_strength
-
-        if "spurious_activation" in self.regularization_option:
-            self.spurious_activation = True
-        else:
-            self.spurious_activation = False
-
-        self.alpha4 = regularization_strength  # set to 1~10
 
         if "dropout" in self.regularization_option:
             self.dropout_defense = True
@@ -262,7 +263,10 @@ class MIA:
             self.topkprune = False
             self.topkprune_ratio = regularization_strength
         
-        # dividing datasets to actual number of clients, self.num_clients is fake num of clients for ease of simulation.
+        ''' Activation Defense (end)'''
+
+
+        # client sampling: dividing datasets to actual number of clients, self.num_clients is fake num of clients for ease of simulation.
         multiplier = 1/self.client_sample_ratio #100
         actual_num_users = int(multiplier * self.num_client)
         self.actual_num_users = actual_num_users
@@ -272,8 +276,9 @@ class MIA:
             self.client_dataloader, self.mem_trainloader, self.mem_testloader = get_cifar10_trainloader(batch_size=self.batch_size,
                                                                                                         num_workers=4,
                                                                                                         shuffle=True,
-                                                                                                        num_client=num_client,
-                                                                                                        collude_use_public=self.collude_use_public)
+                                                                                                        num_client=actual_num_users,
+                                                                                                        collude_use_public=self.collude_use_public,
+                                                                                                        data_portion=self.dataset_portion, noniid_ratio = self.noniid_ratio)
             self.pub_dataloader, self.nomem_trainloader, self.nomem_testloader = get_cifar10_testloader(batch_size=self.batch_size,
                                                                                                         num_workers=4,
                                                                                                         shuffle=False)
@@ -282,8 +287,9 @@ class MIA:
             self.client_dataloader, self.mem_trainloader, self.mem_testloader = get_cifar100_trainloader(batch_size=self.batch_size,
                                                                                                          num_workers=4,
                                                                                                          shuffle=True,
-                                                                                                         num_client=num_client,
-                                                                                                         collude_use_public=self.collude_use_public)
+                                                                                                         num_client=actual_num_users,
+                                                                                                         collude_use_public=self.collude_use_public,
+                                                                                                         data_portion=self.dataset_portion, noniid_ratio = self.noniid_ratio)
             self.pub_dataloader, self.nomem_trainloader, self.nomem_testloader = get_cifar100_testloader(batch_size=self.batch_size,
                                                                                                          num_workers=4,
                                                                                                          shuffle=False)
@@ -293,7 +299,7 @@ class MIA:
             self.client_dataloader, self.mem_trainloader, self.mem_testloader = get_SVHN_trainloader(batch_size=self.batch_size,
                                                                                                          num_workers=4,
                                                                                                          shuffle=True,
-                                                                                                         num_client=num_client,
+                                                                                                         num_client=actual_num_users,
                                                                                                          collude_use_public=self.collude_use_public)
             self.pub_dataloader, self.nomem_trainloader, self.nomem_testloader = get_SVHN_testloader(batch_size=self.batch_size,
                                                                                                          num_workers=4,
@@ -304,33 +310,40 @@ class MIA:
             self.client_dataloader, self.pub_dataloader = get_facescrub_bothloader(batch_size=self.batch_size, 
                                                                                 num_workers=4,
                                                                                 shuffle=True,
-                                                                                num_client=num_client,
+                                                                                num_client=actual_num_users,
                                                                                 collude_use_public=self.collude_use_public)
             self.orig_class = 530
+        elif self.dataset == "tinyimagenet":
+            self.client_dataloader, self.pub_dataloader = get_tinyimagenet_bothloader(batch_size=self.batch_size, 
+                                                                                num_workers=4,
+                                                                                shuffle=True,
+                                                                                num_client=actual_num_users,
+                                                                                collude_use_public=self.collude_use_public)
+            self.orig_class = 200
         elif self.dataset == "mnist":
             self.client_dataloader, self.pub_dataloader = get_mnist_bothloader(batch_size=self.batch_size, 
                                                                                 num_workers=4,
                                                                                 shuffle=True,
-                                                                                num_client=num_client,
+                                                                                num_client=actual_num_users,
                                                                                 collude_use_public=self.collude_use_public)
             self.orig_class = 10
         elif self.dataset == "fmnist":
             self.client_dataloader, self.pub_dataloader = get_fmnist_bothloader(batch_size=self.batch_size, 
                                                                                 num_workers=4,
                                                                                 shuffle=True,
-                                                                                num_client=num_client,
+                                                                                num_client=actual_num_users,
                                                                                 collude_use_public=self.collude_use_public)
             self.orig_class = 10
         else:
             raise ("Dataset {} is not supported!".format(self.dataset))
         self.num_class = self.orig_class
-
-
         self.num_batches = len(self.client_dataloader[0])
         print("Total number of batches per epoch for each client is ", self.num_batches)
 
         self.model = None
 
+
+        # Initialze all client, server side models.
         if "V" in self.scheme:
             # V1, V2 initialize must be the same
             if "V1" in self.scheme or "V2" in self.scheme:
@@ -515,6 +528,8 @@ class MIA:
         for i in range(len(self.gan_scheduler_list)):
             self.gan_scheduler_list[i].step(epoch)
     
+
+    '''Main training function, the communication between client/server is implicit to keep a fast training speed'''
     def train_target_step(self, x_private, label_private, client_id=0):
         self.f_tail.train()
         self.classifier.train()
@@ -543,6 +558,8 @@ class MIA:
         else:
             z_private = self.model.local_list[client_id](x_private)
 
+
+        # Perform various activation defenses
         if self.local_DP:
             if "laplace" in self.regularization_option:
                 noise = torch.from_numpy(
@@ -599,6 +616,7 @@ class MIA:
 
         total_loss = f_loss
 
+        # perform nopeek regularization
         if self.nopeek:
             #
             if "ttitcombe" in self.regularization_option:
@@ -608,12 +626,14 @@ class MIA:
                 dist_corr_loss = self.alpha1 * dist_corr(x_private, z_private).sum()
 
             total_loss = total_loss + dist_corr_loss
+        
+        # perform our proposed attacker-aware training
         if self.gan_regularizer and not self.gan_noise:
             self.local_AE_list[client_id].eval()
             output_image = self.local_AE_list[client_id](z_private)
             
             x_private = denormalize(x_private, self.dataset)
-            '''MSE is poor in regularization here. unstable. We stick to SSIM'''
+            
             if self.gan_loss_type == "SSIM":
                 ssim_loss = pytorch_ssim.SSIM()
                 ssim_term = ssim_loss(output_image, x_private)
@@ -631,10 +651,6 @@ class MIA:
                 gan_loss = - self.alpha2 * mse_term  
             total_loss = total_loss + gan_loss
             
-        if self.spurious_activation:  # increase activation dynamic range == increase weight value
-            # sp_loss = spurious_loss(self.model.local_list[client_id], self.alpha4)
-            sp_loss = spurious_loss(z_private, self.alpha4)
-            total_loss = total_loss + sp_loss
 
         total_loss.backward()
 
@@ -644,6 +660,7 @@ class MIA:
 
         return total_losses, f_losses
 
+    # Main function for validation accuracy, is also used to get statistics
     def validate_target(self, client_id=0):
         """
         Run evaluation
@@ -721,6 +738,8 @@ class MIA:
                     output = dropout_defense(output, self.dropout_ratio)
                 if self.topkprune:
                     output = prune_defense(output, self.topkprune_ratio)
+            
+            '''Optional, Test validation performance with gan_noise (apply gan_noise during query)'''
             if self.gan_noise:
                 epsilon = self.alpha2
                 
@@ -744,6 +763,7 @@ class MIA:
                     grad += torch.sign(fake_act.grad) 
 
                 output = output - grad.detach() * epsilon
+            
             with torch.no_grad():
                 output = self.f_tail(output)
 
@@ -760,6 +780,8 @@ class MIA:
                     output = self.classifier(output)
                 loss = criterion(output, target)
 
+
+            # Get statistics of server/client's per-layer activation
             if i == 0:
                 try:
                     if not os.path.exists(self.save_dir):
@@ -816,6 +838,7 @@ class MIA:
 
         return top1.avg, losses.avg
 
+    # auto complete model's name, since we have many
     def infer_path_list(self, path_to_infer):
         split_list = path_to_infer.split("checkpoint_f")
         first_part = split_list[0]
@@ -831,6 +854,7 @@ class MIA:
 
         return model_path_list
 
+    # resume all client and server model from checkpoint
     def resume(self, model_path_f=None):
         if model_path_f is None:
             try:
@@ -882,7 +906,8 @@ class MIA:
             self.f_tail.cuda()
             self.classifier = self.model.classifier
             self.classifier.cuda()
-
+    
+    # client-side model sync
     def sync_client(self):
         # update global weights
         global_weights = average_weights(self.model.local_list)
@@ -891,6 +916,7 @@ class MIA:
         for i in range(self.num_client):
             self.model.local_list[i].load_state_dict(global_weights)
 
+    # decoder sync
     def sync_decoder(self):
         # update global weights
         global_weights = average_weights(self.local_AE_list)
@@ -899,6 +925,7 @@ class MIA:
         for i in range(self.num_client):
             self.local_AE_list[i].load_state_dict(global_weights)
 
+    # train local inversion model
     def gan_train_step(self, input_images, client_id, loss_type="SSIM"):
         device = next(self.model.local_list[client_id].parameters()).device
 
@@ -922,7 +949,6 @@ class MIA:
             grad = torch.zeros_like(z_private).cuda()
             fake_act = torch.autograd.Variable(fake_act.cuda(), requires_grad=True)
             x_recon = self.local_AE_list[client_id](fake_act)
-
             if loss_type == "SSIM":
                 ssim_loss = pytorch_ssim.SSIM()
                 loss = ssim_loss(x_recon, x_private)
@@ -963,6 +989,8 @@ class MIA:
 
         return losses
 
+
+    # Main function for controlling training and testing, soul of ResSFL
     def __call__(self, log_frequency=500, verbose=False, progress_bar=True):
         self.logger.debug("Model's smashed-data size is {}".format(str(self.model.get_smashed_data_size())))
         best_avg_accu = 0.0
@@ -1212,6 +1240,8 @@ class MIA:
             torch.save(self.f_tail.state_dict(), self.save_dir + 'checkpoint_cloud_{}.tar'.format(epoch))
             torch.save(self.classifier.state_dict(), self.save_dir + 'checkpoint_classifier_{}.tar'.format(epoch))
 
+
+    # generate activation and image pair for training the attacker's inversion model
     def gen_ir(self, val_single_loader, local_model, img_folder="./tmp", intermed_reps_folder="./tmp", all_label=True,
                select_label=0, attack_from_later_layer=-1, attack_option = "MIA"):
         """
@@ -1300,6 +1330,8 @@ class MIA:
         print("Overall size of Training/Validation Datset for AE is {}: {}".format(int(file_id * 0.9),
                                                                                    int(file_id * 0.1)))
 
+
+    # pre-train a GAN with local data before SFL training
     def pre_GAN_train(self, num_epochs, select_client_list=[0]):
 
         # Generate latest images/activation pair for all clients:
@@ -1347,7 +1379,9 @@ class MIA:
                 _, val_single_loader = get_fmnist_bothloader(batch_size=1, num_workers=4, shuffle=False)
             elif self.dataset == "facescrub":
                 _, val_single_loader = get_facescrub_bothloader(batch_size=1, num_workers=4, shuffle=False)
-                    
+            elif self.dataset == "tinyimagenet":
+                _, val_single_loader = get_tinyimagenet_bothloader(batch_size=1, num_workers=4, shuffle=False)
+
             attack_path = self.save_dir + '/MIA_attack_{}to{}'.format(client_id, client_id)
             if not os.path.isdir(attack_path):
                 os.makedirs(attack_path)
@@ -1393,6 +1427,8 @@ class MIA:
             if os.path.isdir(tensor_data_dir):
                 rmtree(tensor_data_dir)
 
+
+    # Main function to do Model Inversion attack, we support model-based ("MIA") and optimization-based ("MIA_mf")
     def MIA_attack(self, num_epochs, attack_option="MIA", collude_client=1, target_client=0, noise_aware=False,
                    loss_type="MSE", attack_from_later_layer=-1, MIA_optimizer = "Adam", MIA_lr = 1e-3):
         attack_option = attack_option
@@ -1425,6 +1461,8 @@ class MIA:
             _, val_single_loader = get_fmnist_bothloader(batch_size=1, num_workers=4, shuffle=False)
         elif self.dataset == "facescrub":
             _, val_single_loader = get_facescrub_bothloader(batch_size=1, num_workers=4, shuffle=False)
+        elif self.dataset == "tinyimagenet":
+            _, val_single_loader = get_tinyimagenet_bothloader(batch_size=1, num_workers=4, shuffle=False)
 
         attack_path = self.save_dir + '/{}_attack_{}to{}'.format(attack_option, collude_client, target_client)
         if not os.path.isdir(attack_path):
@@ -1594,6 +1632,8 @@ class MIA:
             if os.path.isdir(tensor_data_dir):
                 rmtree(tensor_data_dir)
             return mse_score, ssim_score, psnr_score
+        
+        
         elif attack_option == "MIA_mf":  # Stands for Model-free MIA, does not need a AE model, optimize each fake image instead.
 
             lambda_TV = 0.0
@@ -1671,6 +1711,7 @@ class MIA:
                 psnr_test_losses.avg))
             return all_test_losses.avg, ssim_test_losses.avg, psnr_test_losses.avg
 
+    # This function means performing training of the attacker's inversion model, is used in MIA_attack function.
     def attack(self, num_epochs, decoder, optimizer, trainloader, testloader, logger, path_dict, batch_size,
                loss_type="MSE", pretrained_decoder=None, noise_aware=False):
         round_ = 0
@@ -1793,6 +1834,7 @@ class MIA:
         elif loss_type == "PSNR":
             logger.debug("Best Validation Loss is {}".format(max_val_loss))
 
+    # This function means testing of the attacker's inversion model
     def test_attack(self, num_epochs, decoder, sp_testloader, logger, path_dict, batch_size, num_classes=10,
                     select_label=0):
         device = next(decoder.parameters()).device
@@ -1830,6 +1872,7 @@ class MIA:
             "PSNR Loss on ALL Image is {:.4f} (Real Attack Results on the Target Client)".format(psnr_test_losses.avg))
         return all_test_losses.avg, ssim_test_losses.avg, psnr_test_losses.avg
 
+    # used for bhtsne
     def save_activation_bhtsne(self, save_activation, target, client_id):
         """
             Run one train epoch

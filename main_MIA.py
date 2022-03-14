@@ -20,6 +20,9 @@ parser.add_argument('--folder', default="saves", type=str, help='please type fol
 parser.add_argument('--num_client', default=1, type=int, help='number of client')
 parser.add_argument('--num_epochs', default=200, type=int, help='number of epochs')
 parser.add_argument('--learning_rate', default=0.01, type=float, help='Learning Rate for server-side model')
+parser.add_argument('--dataset_portion', default=1.0, type=float, help='dataset_portion')
+parser.add_argument('--client_sample_ratio', default=1.0, type=float, help='client_sample_ratio')
+parser.add_argument('--noniid', default=1.0, type=float, help='noniid_ratio, if = 0.1, meaning 1 out of 10 class per client')
 parser.add_argument('--local_lr', default=-1, type=float, help='Learning Rate for client-side model')
 parser.add_argument('--dataset', default="cifar10", type=str, help='number of classes for the testing dataset')
 parser.add_argument('--scheme', default="V2_epoch", type=str, help='the name of the scheme, either V3 or others')
@@ -62,7 +65,8 @@ mi = MIA_torch.MIA(args.arch, cutting_layer, batch_size, n_epochs = args.num_epo
                  load_from_checkpoint = args.load_from_checkpoint, bottleneck_option = args.bottleneck_option, 
                  optimize_computation = args.optimize_computation, decoder_sync = args.decoder_sync, 
                  finetune_freeze_bn = args.finetune_freeze_bn, gan_loss_type=args.gan_loss_type, ssim_threshold = args.ssim_threshold,
-                 source_task = args.transfer_source_task, load_from_checkpoint_server = args.load_from_checkpoint_server, save_more_checkpoints = args.save_more_checkpoints)
+                 source_task = args.transfer_source_task, load_from_checkpoint_server = args.load_from_checkpoint_server, save_more_checkpoints = args.save_more_checkpoints,
+                 dataset_portion = args.dataset_portion, noniid = args.noniid, client_sample_ratio = args.client_sample_ratio)
 mi.logger.debug(str(args))
 
 log_frequency = 500

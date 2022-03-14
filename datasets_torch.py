@@ -24,6 +24,8 @@ CIFAR100_TRAIN_MEAN = (0.5070751592371323, 0.48654887331495095, 0.44091784336703
 CIFAR100_TRAIN_STD = (0.2673342858792401, 0.2564384629170883, 0.27615047132568404)
 FACESCRUB_TRAIN_MEAN = (0.5708, 0.5905, 0.4272)
 FACESCRUB_TRAIN_STD = (0.2058, 0.2275, 0.2098)
+TINYIMAGENET_TRAIN_MEAN = (0.5141, 0.5775, 0.3985)
+TINYIMAGENET_TRAIN_STD = (0.2927, 0.2570, 0.1434)
 SVHN_TRAIN_MEAN = (0.3522, 0.4004, 0.4463)
 SVHN_TRAIN_STD = (0.1189, 0.1377, 0.1784)
 
@@ -32,6 +34,18 @@ def getImagesDS(X, n):
     for i in range(n):
         image_list.append(X[i][0].numpy()[None,])
     return np.concatenate(image_list)
+
+class DatasetSplit(torch.utils.data.Dataset):
+    def __init__(self, dataset, idxs):
+        self.dataset = dataset
+        self.idxs = list(idxs)
+
+    def __len__(self):
+        return len(self.idxs)
+
+    def __getitem__(self, item):
+        images, labels = self.dataset[self.idxs[item]]
+        return images, labels
 
 def remove_class_loader(some_dataset, label_class, batch_size=16, num_workers=2):
     def remove_one_label(target, label):
@@ -55,6 +69,77 @@ def remove_class_loader(some_dataset, label_class, batch_size=16, num_workers=2)
     
     return new_data_loader, excluded_data_loader
 
+
+def noniid_unlabel(dataset, num_users, label_rate, noniid_ratio = 0.2, num_class = 10):
+    num_class_per_client = int(noniid_ratio * num_class)
+    num_shards, num_imgs = num_class_per_client * num_users, int(len(dataset)/num_users/num_class_per_client)
+    idx_shard = [i for i in range(num_shards)]
+    dict_users_unlabeled = {i: np.array([], dtype='int64') for i in range(num_users)}
+    idxs = np.arange(len(dataset))
+    labels = np.arange(len(dataset))  
+    
+
+    for i in range(len(dataset)):
+        labels[i] = dataset[i][1]
+        
+    num_items = int(len(dataset)/num_users)
+    dict_users_labeled = set()
+
+    # sort labels
+    idxs_labels = np.vstack((idxs, labels))
+    idxs_labels = idxs_labels[:,idxs_labels[1,:].argsort()]#索引值
+    idxs = idxs_labels[0,:]
+
+    # divide and assign
+    for i in range(num_users):
+        rand_set = set(np.random.choice(idx_shard, num_class_per_client, replace=False))
+        idx_shard = list(set(idx_shard) - rand_set)
+        for rand in rand_set:
+            dict_users_unlabeled[i] = np.concatenate((dict_users_unlabeled[i], idxs[rand*num_imgs:(rand+1)*num_imgs]), axis=0)
+
+    dict_users_labeled = set(np.random.choice(list(idxs), int(len(idxs) * label_rate), replace=False))
+    
+    for i in range(num_users):
+
+        dict_users_unlabeled[i] = set(dict_users_unlabeled[i])
+#         dict_users_labeled = dict_users_labeled | set(np.random.choice(list(dict_users_unlabeled[i]), int(num_items * label_rate), replace=False))
+        dict_users_unlabeled[i] = dict_users_unlabeled[i] - dict_users_labeled
+
+
+    return dict_users_labeled, dict_users_unlabeled
+
+def noniid_alllabel(dataset, num_users, noniid_ratio = 0.2, num_class = 10):
+    num_class_per_client = int(noniid_ratio * num_class)
+    num_shards, num_imgs = num_class_per_client * num_users, int(len(dataset)/num_users/num_class_per_client)
+    idx_shard = [i for i in range(num_shards)]
+    dict_users_labeled = {i: np.array([], dtype='int64') for i in range(num_users)}
+    idxs = np.arange(len(dataset))
+    labels = np.arange(len(dataset))  
+    
+
+    for i in range(len(dataset)):
+        labels[i] = dataset[i][1]
+        
+    num_items = int(len(dataset)/num_users)
+
+    # sort labels
+    idxs_labels = np.vstack((idxs, labels))
+    idxs_labels = idxs_labels[:,idxs_labels[1,:].argsort()]#索引值
+    idxs = idxs_labels[0,:]
+
+    # divide and assign
+    for i in range(num_users):
+        rand_set = set(np.random.choice(idx_shard, num_class_per_client, replace=False))
+        idx_shard = list(set(idx_shard) - rand_set)
+        for rand in rand_set:
+            dict_users_labeled[i] = np.concatenate((dict_users_labeled[i], idxs[rand*num_imgs:(rand+1)*num_imgs]), axis=0)
+    
+    for i in range(num_users):
+
+        dict_users_labeled[i] = set(dict_users_labeled[i])
+
+
+    return dict_users_labeled
 
 def load_fmnist():
     xpriv = datasets.FashionMNIST(root='./data', train=True, download=True)
@@ -219,6 +304,52 @@ def get_facescrub_bothloader(batch_size=16, num_workers=2, shuffle=True, num_cli
 
     return facescrub_training_loader, facescrub_testing_loader
 
+def get_tinyimagenet_bothloader(batch_size=16, num_workers=2, shuffle=True, num_client = 1, collude_use_public = False):
+    """ return training dataloader
+    Args:
+        mean: mean of cifar10 training dataset
+        std: std of cifar10 training dataset
+        path: path to cifar10 training python dataset
+        batch_size: dataloader batchsize
+        num_workers: dataloader num_works
+        shuffle: whether to shuffle
+    Returns: train_data_loader:torch dataloader object
+    """
+    transform_train = transforms.Compose([
+        transforms.Resize(32),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(15),
+        transforms.ToTensor(),
+        transforms.Normalize(TINYIMAGENET_TRAIN_MEAN, TINYIMAGENET_TRAIN_STD)
+    ])
+
+    transform_test = transforms.Compose([
+        transforms.Resize(32),
+        transforms.ToTensor(),
+        transforms.Normalize(TINYIMAGENET_TRAIN_MEAN, TINYIMAGENET_TRAIN_STD)
+    ])
+
+    if not os.path.isdir("./tiny-imagenet-200/train"):
+        import subprocess
+        subprocess.call("python prepare_tinyimagenet.py", shell=True)
+    tinyimagenet_training = datasets.ImageFolder('tiny-imagenet-200/train', transform=transform_train)
+    tinyimagenet_testing = datasets.ImageFolder('tiny-imagenet-200/val', transform=transform_test)
+
+    if num_client == 1:
+        tinyimagenet_training_loader = [torch.utils.data.DataLoader(tinyimagenet_training,  batch_size=batch_size, shuffle=shuffle,
+                num_workers=num_workers)]
+    elif num_client > 1:
+        tinyimagenet_training_loader = []
+        for i in range(num_client):
+            mnist_training_subset = torch.utils.data.Subset(tinyimagenet_training, list(range(i * (len(tinyimagenet_training)//num_client), (i+1) * (len(tinyimagenet_training)//num_client))))
+            subset_training_loader = DataLoader(
+                mnist_training_subset, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
+            tinyimagenet_training_loader.append(subset_training_loader)
+    
+    tinyimagenet_testing_loader = torch.utils.data.DataLoader(tinyimagenet_testing,  batch_size=batch_size, shuffle=False,
+                num_workers=num_workers)
+
+    return tinyimagenet_training_loader, tinyimagenet_testing_loader
 
 def get_purchase_trainloader():
     DATASET_PATH='./datasets/purchase'
@@ -298,7 +429,7 @@ def get_purchase_trainloader():
     print('Data loading finished')
     return shadow_train_loader, shadow_test_loader, target_train_loader, target_test_loader
 
-def get_cifar10_trainloader(batch_size=16, num_workers=2, shuffle=True, num_client = 1, collude_use_public = False):
+def get_cifar10_trainloader(batch_size=16, num_workers=2, shuffle=True, num_client = 1, collude_use_public = False, data_portion = 1.0, noniid_ratio = 1.0):
     """ return training dataloader
     Args:
         mean: mean of cifar10 training dataset
@@ -319,14 +450,27 @@ def get_cifar10_trainloader(batch_size=16, num_workers=2, shuffle=True, num_clie
     ])
     #cifar00_training = CIFAR10Train(path, transform=transform_train)
     cifar10_training = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
+
+    indices = torch.randperm(len(cifar10_training))[:int(len(cifar10_training)* data_portion)]
+
+    cifar10_training = torch.utils.data.Subset(cifar10_training, indices)
+
     if num_client == 1:
         cifar10_training_loader = [DataLoader(
             cifar10_training, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)]
     elif num_client > 1:
         cifar10_training_loader = []
+
+        if noniid_ratio < 1.0:
+            cifar10_training_subset_list = noniid_alllabel(cifar10_training, num_client, noniid_ratio, 100)
+
         if not collude_use_public:
             for i in range(num_client):
-                cifar10_training_subset = torch.utils.data.Subset(cifar10_training, list(range(i * (len(cifar10_training)//num_client), (i+1) * (len(cifar10_training)//num_client))))
+                if noniid_ratio == 1.0:
+                    cifar10_training_subset = torch.utils.data.Subset(cifar10_training, list(range(i * (len(cifar10_training)//num_client), (i+1) * (len(cifar10_training)//num_client))))
+                else:
+                    cifar10_training_subset = DatasetSplit(cifar10_training, cifar10_training_subset_list[i])
+                
                 subset_training_loader = DataLoader(
                     cifar10_training_subset, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
                 cifar10_training_loader.append(subset_training_loader)
@@ -422,7 +566,7 @@ def get_cifar10_testloader(batch_size=16, num_workers=2, shuffle=True, extra_cls
 
 
 
-def get_cifar100_trainloader(batch_size=16, num_workers=2, shuffle=True, num_client = 1, collude_use_public = False):
+def get_cifar100_trainloader(batch_size=16, num_workers=2, shuffle=True, num_client = 1, collude_use_public = False, data_portion = 1.0, noniid_ratio = 1.0):
     """ return training dataloader
     Args:
         mean: mean of cifar100 training dataset
@@ -444,15 +588,29 @@ def get_cifar100_trainloader(batch_size=16, num_workers=2, shuffle=True, num_cli
     ])
     
     cifar100_training = torchvision.datasets.CIFAR100(root='./data', train=True, download=True, transform=transform_train)
+    
+    indices = torch.randperm(len(cifar100_training))[:int(len(cifar100_training)* data_portion)]
+
+    cifar100_training = torch.utils.data.Subset(cifar100_training, indices)
+    
     if num_client == 1:
         cifar100_training_loader = [DataLoader(
             cifar100_training, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)]
     
     elif num_client > 1:
         cifar100_training_loader = []
+
+        if noniid_ratio < 1.0:
+            cifar100_training_subset_list = noniid_alllabel(cifar100_training, num_client, noniid_ratio, 100)
+        
+
         if not collude_use_public:
             for i in range(num_client):
-                cifar100_training_subset = torch.utils.data.Subset(cifar100_training, list(range(i * (len(cifar100_training)//num_client), (i+1) * (len(cifar100_training)//num_client))))
+                if noniid_ratio == 1.0:
+                    cifar100_training_subset = torch.utils.data.Subset(cifar100_training, list(range(i * (len(cifar100_training)//num_client), (i+1) * (len(cifar100_training)//num_client))))
+                else:
+                    cifar100_training_subset = DatasetSplit(cifar100_training, cifar100_training_subset_list[i])
+                
                 subset_training_loader = DataLoader(
                     cifar100_training_subset, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
                 cifar100_training_loader.append(subset_training_loader)

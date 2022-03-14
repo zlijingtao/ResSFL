@@ -94,6 +94,7 @@ for date_0 in date_list:
         c_mac, c_num_param, s_mac, s_num_param = mi.model.get_MAC_param()
         mi.logger.debug("Client Model's Mac and Param are {} and {}".format(c_mac, c_num_param))
         mi.logger.debug("Server Model's Mac and Param are {} and {}".format(s_mac, s_num_param))
+        
         # cpu_time, gpu_time = mi.model.get_inference_time()
         # mi.logger.debug("Client-side model Inference on cpu is {}, Server-side model Inference on gpu is {}".format(cpu_time, gpu_time))
 
@@ -133,6 +134,8 @@ for date_0 in date_list:
             mi.logger.debug("== Noise-Aware MIA attack (smart attack to break Local Differential Privacy) ==")
     else:
         noise_aware = False
+
+
     # '''Generate random images/activation pair:'''
     # if mi.num_client > 1:
     #     client_iterator_list = []
