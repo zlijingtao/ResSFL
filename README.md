@@ -43,3 +43,8 @@ List of additional experiments in supplementary material:
 1. Performance against Optimization-based MI attack
 2. Performance on clients with Non-iid data
 3. Extra empirical evidence on successful resistance transfer
+
+## Cite the work:
+```
+arxiv will be released soon.
+```
