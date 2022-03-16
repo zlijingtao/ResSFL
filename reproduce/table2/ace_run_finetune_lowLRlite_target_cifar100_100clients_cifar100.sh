@@ -1,7 +1,7 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 cd ../../
-GPU_id=4
+GPU_id=3
 arch=vgg11_bn
 batch_size=128
 
@@ -27,7 +27,7 @@ gan_loss_type=SSIM
 
 transfer_source_task="cifar10"
 # dataset_list="svhn cifar100"
-dataset_list="svhn"
+dataset_list="cifar100"
 learning_rate=0.05
 local_lr_list="0.005"
 for random_seed in $random_seed_list; do

@@ -7,8 +7,8 @@ batch_size=128
 
 num_client=2
 num_epochs=200
-# dataset_list="cifar10 cifar100 mnist svhn facescrub"
-dataset_list="svhn"
+dataset_list="mnist svhn facescrub"
+# dataset_list="svhn"
 scheme=V2_epoch
 random_seed_list="125"
 #Extra argement (store_true): --collude_use_public, --initialize_different  --collude_not_regularize  --collude_not_regularize --num_client_regularize ${num_client_regularize}
