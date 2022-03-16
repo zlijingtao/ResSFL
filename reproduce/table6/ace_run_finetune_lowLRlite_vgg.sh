@@ -24,7 +24,7 @@ gan_loss_type=SSIM
 transfer_source_task=cifar10
 
 dataset_list="cifar100"
-learning_rate=0.02
+learning_rate=0.05
 local_lr_list="0.005"
 
 bottleneck_option=norelu_C1S1

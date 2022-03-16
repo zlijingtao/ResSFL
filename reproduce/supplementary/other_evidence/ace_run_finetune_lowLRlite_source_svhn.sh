@@ -1,6 +1,6 @@
 #!/bin/bash
 cd "$(dirname "$0")"
-cd ../../
+cd ../../../
 GPU_id=0
 arch=vgg11_bn
 batch_size=128
