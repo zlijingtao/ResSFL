@@ -1,13 +1,13 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 cd ../../
-GPU_id=0
-arch=vgg11_bn
+GPU_id=3
+arch=resnet20
 batch_size=128
 
 num_client=2
 num_epochs=200
-dataset_list="cifar10 svhn facescrub mnist"
+dataset_list="cifar100"
 scheme=V2_epoch
 random_seed_list="125"
 #Extra argement (store_true): --collude_use_public, --initialize_different  --collude_not_regularize  --collude_not_regularize --num_client_regularize ${num_client_regularize}
@@ -16,6 +16,7 @@ regularization=None
 learning_rate=0.05
 local_lr=-1
 regularization_strength_list="0.0"
+# cutlayer_list="2 4 5"
 cutlayer_list="4"
 num_client_list="1"
 train_gan_AE_type=custom
