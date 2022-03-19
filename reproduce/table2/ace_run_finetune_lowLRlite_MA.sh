@@ -13,7 +13,7 @@ random_seed_list="125"
 
 regularization=gan_adv_step1
 scheme_list="V2_batch"
-learning_rate=0.02
+learning_rate=0.05
 local_lr_list="0.005"
 ssim_threshold=0.5
 regularization_strength_list="0.3"

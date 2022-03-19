@@ -1,7 +1,7 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 cd ../../
-GPU_id=2
+GPU_id=5
 arch=mobilenetv2
 batch_size=128
 
@@ -13,7 +13,7 @@ random_seed_list="125"
 #Extra argement (store_true): --collude_use_public, --initialize_different  --collude_not_regularize  --collude_not_regularize --num_client_regularize ${num_client_regularize}
 
 regularization=None
-learning_rate=0.05
+learning_rate=0.02
 local_lr=-1
 regularization_strength_list="0.0"
 # cutlayer_list="2 4 5"
