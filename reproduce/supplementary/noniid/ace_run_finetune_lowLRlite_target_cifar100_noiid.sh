@@ -47,15 +47,15 @@ for random_seed in $random_seed_list; do
                                                 attack_epochs=50
                                                 average_time=1
                                                 
-                                                # internal_C=16
-                                                # N=0
-                                                # test_gan_AE_type=conv_normN${N}C${internal_C}
+                                                internal_C=16
+                                                N=0
+                                                test_gan_AE_type=conv_normN${N}C${internal_C}
 
-                                                # CUDA_VISIBLE_DEVICES=${GPU_id} python main_test_MIA.py --arch=${arch} --cutlayer=$cutlayer --batch_size=${batch_size} \
-                                                #         --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
-                                                #         --dataset=$dataset --scheme=$scheme --target_client=${target_client} --test_best\
-                                                #         --attack_scheme=$attack_scheme --attack_scheme=$attack_scheme --attack_epochs=$attack_epochs  --bottleneck_option ${bottleneck_option}\
-                                                #         --average_time=$average_time --gan_AE_type ${test_gan_AE_type} --regularization=$regularization  --regularization_strength=${regularization_strength} --folder ${folder_name}
+                                                CUDA_VISIBLE_DEVICES=${GPU_id} python main_test_MIA.py --arch=${arch} --cutlayer=$cutlayer --batch_size=${batch_size} \
+                                                        --filename=$filename --num_client=$num_client --num_epochs=$num_epochs \
+                                                        --dataset=$dataset --scheme=$scheme --target_client=${target_client} --test_best\
+                                                        --attack_scheme=$attack_scheme --attack_scheme=$attack_scheme --attack_epochs=$attack_epochs  --bottleneck_option ${bottleneck_option}\
+                                                        --average_time=$average_time --gan_AE_type ${test_gan_AE_type} --regularization=$regularization  --regularization_strength=${regularization_strength} --folder ${folder_name}
 
                                                 internal_C=32
                                                 N=2

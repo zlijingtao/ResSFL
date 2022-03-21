@@ -7,12 +7,12 @@ batch_size=128
 
 num_client=10
 num_epochs=1000
-scheme=V2_batch
+scheme=V2_epoch
 random_seed_list="125"
 #Extra argement (store_true): --collude_use_public, --initialize_different  --collude_not_regularize  --collude_not_regularize --num_client_regularize ${num_client_regularize}
 
 regularization=gan_adv_step1
-scheme_list="V2_batch"
+scheme_list="V2_epoch"
 
 ssim_threshold=0.5
 regularization_strength_list="0.3"
@@ -26,7 +26,6 @@ gan_loss_type=SSIM
 
 
 transfer_source_task="cifar10"
-# dataset_list="svhn cifar100"
 dataset_list="svhn"
 learning_rate=0.05
 local_lr_list="0.005"
