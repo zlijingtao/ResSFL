@@ -46,5 +46,11 @@ List of additional experiments in supplementary material:
 
 ## Cite the work:
 ```
-arxiv will be released soon.
+@inproceedings{li2022ressfl,
+  title={ResSFL: A Resistance Transfer Framework for Defending Model Inversion Attack in Split Federated Learning},
+  author={Li, Jingtao and Rakin, Adnan Siraj and Chen, Xing and He, Zhezhi and Fan, Deliang and Chakrabarti, Chaitali},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={10194--10202},
+  year={2022}
+}
 ```
